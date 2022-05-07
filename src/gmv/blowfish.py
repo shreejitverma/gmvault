@@ -384,12 +384,12 @@ class Blowfish:
         """
         Initializes CTR engine for encryption or decryption.
         """
-        if not struct.calcsize("Q") == self._BLOCK_SIZE:
+        if struct.calcsize("Q") != self._BLOCK_SIZE:
             raise ValueError("Struct-type 'Q' must have a length of %(target-len)i bytes, not %(q-len)i bytes; this module cannot be used on your platform" % {
              'target-len': self._BLOCK_SIZE,
              'q-len': struct.calcsize("Q"),
             })
- 
+
         self._ctr_iv = iv
         self._calcCTRBuf()
  
@@ -429,21 +429,28 @@ class Blowfish:
  
         Returns an 8-byte encrypted string.
         """
-        if not len(data) == 8:
+        if len(data) != 8:
             raise ValueError("Attempted to encrypt data of invalid block length: %(len)i" % {
              'len': len(data),
             })
- 
+
         # Use big endianess since that's what everyone else uses
         xl = (ord(data[3])) | (ord(data[2]) << 8) | (ord(data[1]) << 16) | (ord(data[0]) << 24)
         xr = (ord(data[7])) | (ord(data[6]) << 8) | (ord(data[5]) << 16) | (ord(data[4]) << 24)
- 
+
         (cl, cr) = self.cipher(xl, xr, self.ENCRYPT)
-        chars = ''.join ([
-         chr((cl >> 24) & 0xFF), chr((cl >> 16) & 0xFF), chr((cl >> 8) & 0xFF), chr(cl & 0xFF),
-         chr((cr >> 24) & 0xFF), chr((cr >> 16) & 0xFF), chr((cr >> 8) & 0xFF), chr(cr & 0xFF)
-        ])
-        return chars
+        return ''.join(
+            [
+                chr((cl >> 24) & 0xFF),
+                chr((cl >> 16) & 0xFF),
+                chr((cl >> 8) & 0xFF),
+                chr(cl & 0xFF),
+                chr((cr >> 24) & 0xFF),
+                chr((cr >> 16) & 0xFF),
+                chr((cr >> 8) & 0xFF),
+                chr(cr & 0xFF),
+            ]
+        )
  
     def decrypt(self, data):
         """
@@ -452,15 +459,15 @@ class Blowfish:
  
         Returns an 8-byte string of plaintext.
         """
-        if not len(data) == 8:
+        if len(data) != 8:
             raise ValueError("Attempted to encrypt data of invalid block length: %(len)i" % {
              'len': len(data),
             })
- 
+
         # Use big endianess since that's what everyone else uses
         cl = (ord(data[3])) | (ord(data[2]) << 8) | (ord(data[1]) << 16) | (ord(data[0]) << 24)
         cr = (ord(data[7])) | (ord(data[6]) << 8) | (ord(data[5]) << 16) | (ord(data[4]) << 24)
- 
+
         (xl, xr) = self.cipher (cl, cr, self.DECRYPT)
         return ''.join ([
          chr((xl >> 24) & 0xFF), chr((xl >> 16) & 0xFF), chr((xl >> 8) & 0xFF), chr(xl & 0xFF),
@@ -473,9 +480,9 @@ class Blowfish:
  
         This method can be called successively for multiple string blocks.
         """
-        if not type(data) is str:
+        if type(data) is not str:
             raise TypeError("Only 8-bit strings are supported")
- 
+
         return ''.join([chr(ord(ch) ^ self._nextCTRByte()) for ch in data])
  
     def decryptCTR(self, data):

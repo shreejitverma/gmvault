@@ -38,43 +38,40 @@ def handle_restore_imap_error(the_exception, gm_id, db_gmail_ids_info, gmvaulter
        function to handle restore IMAPError in restore functions 
     """
     if isinstance(the_exception, imaplib.IMAP4.abort):
-        # if this is a Gmvault SSL Socket error quarantine the email and continue the restore
-        if str(the_exception).find("=> Gmvault ssl socket error: EOF") >= 0:
-            LOG.critical("Quarantine email with gm id %s from %s. GMAIL IMAP cannot restore it:"\
-                         " err={%s}" % (gm_id, db_gmail_ids_info[gm_id], str(the_exception)))
-            gmvaulter.gstorer.quarantine_email(gm_id)
-            gmvaulter.error_report['emails_in_quarantine'].append(gm_id)
-            LOG.critical("Disconnecting and reconnecting to restart cleanly.")
-            gmvaulter.src.reconnect() #reconnect
-        else:
+        if "=> Gmvault ssl socket error: EOF" not in str(the_exception):
             raise the_exception
-        
+
+        LOG.critical("Quarantine email with gm id %s from %s. GMAIL IMAP cannot restore it:"\
+                     " err={%s}" % (gm_id, db_gmail_ids_info[gm_id], str(the_exception)))
+        gmvaulter.gstorer.quarantine_email(gm_id)
+        gmvaulter.error_report['emails_in_quarantine'].append(gm_id)
+        LOG.critical("Disconnecting and reconnecting to restart cleanly.")
+        gmvaulter.src.reconnect() #reconnect
     elif isinstance(the_exception, imaplib.IMAP4.error): 
-        LOG.error("Catched IMAP Error %s" % (str(the_exception)))
+        LOG.error(f"Catched IMAP Error {str(the_exception)}")
         LOG.exception(the_exception)
-        
-        #When the email cannot be read from Database because it was empty when returned by gmail imap
-        #quarantine it.
-        if str(the_exception) == "APPEND command error: BAD ['Invalid Arguments: Unable to parse message']":
-            LOG.critical("Quarantine email with gm id %s from %s. GMAIL IMAP cannot restore it:"\
-                         " err={%s}" % (gm_id, db_gmail_ids_info[gm_id], str(the_exception)))
-            gmvaulter.gstorer.quarantine_email(gm_id)
-            gmvaulter.error_report['emails_in_quarantine'].append(gm_id) 
-        else:
+
+        if (
+            str(the_exception)
+            != "APPEND command error: BAD ['Invalid Arguments: Unable to parse message']"
+        ):
             raise the_exception
+        LOG.critical("Quarantine email with gm id %s from %s. GMAIL IMAP cannot restore it:"\
+                     " err={%s}" % (gm_id, db_gmail_ids_info[gm_id], str(the_exception)))
+        gmvaulter.gstorer.quarantine_email(gm_id)
+        gmvaulter.error_report['emails_in_quarantine'].append(gm_id)
     elif isinstance(the_exception, imap_utils.PushEmailError):
-        LOG.error("Catch the following exception %s" % (str(the_exception)))
+        LOG.error(f"Catch the following exception {str(the_exception)}")
         LOG.exception(the_exception)
-        
-        if the_exception.quarantined():
-            LOG.critical("Quarantine email with gm id %s from %s. GMAIL IMAP cannot restore it:"\
-                         " err={%s}" % (gm_id, db_gmail_ids_info[gm_id], str(the_exception)))
-            gmvaulter.gstorer.quarantine_email(gm_id)
-            gmvaulter.error_report['emails_in_quarantine'].append(gm_id) 
-        else:
-            raise the_exception          
+
+        if not the_exception.quarantined():
+            raise the_exception
+        LOG.critical("Quarantine email with gm id %s from %s. GMAIL IMAP cannot restore it:"\
+                     " err={%s}" % (gm_id, db_gmail_ids_info[gm_id], str(the_exception)))
+        gmvaulter.gstorer.quarantine_email(gm_id)
+        gmvaulter.error_report['emails_in_quarantine'].append(gm_id)
     else:
-        LOG.error("Catch the following exception %s" % (str(the_exception)))
+        LOG.error(f"Catch the following exception {str(the_exception)}")
         LOG.exception(the_exception)
         raise the_exception
 
@@ -271,9 +268,7 @@ class GMVaulter(object):
         """
            Return the imap request for those 2 dates
         """
-        imap_req = 'Since %s Before %s' % (gmvault_utils.datetime2imapdate(begin_date), gmvault_utils.datetime2imapdate(end_date))
-        
-        return imap_req
+        return f'Since {gmvault_utils.datetime2imapdate(begin_date)} Before {gmvault_utils.datetime2imapdate(end_date)}'
     
     def get_operation_report(self):
         """
@@ -288,9 +283,9 @@ class GMVaulter(object):
                  len(self.error_report['cannot_be_fetched']), \
                  len(self.error_report['empty'])
                 )
-              
-        LOG.debug("error_report complete structure = %s" % (self.error_report))
-        
+
+        LOG.debug(f"error_report complete structure = {self.error_report}")
+
         return the_str
         
     def _sync_between(self, begin_date, end_date, storage_dir, compress = True):
@@ -350,36 +345,36 @@ class GMVaulter(object):
            Needs update
         """
         if curr_metadata[gmvault_db.GmailStorer.ID_K] != new_metadata['X-GM-MSGID']:
-            raise Exception("Gmail id has changed for %s" % (curr_metadata['id']))
-                
+            raise Exception(f"Gmail id has changed for {curr_metadata['id']}")
+
         #check flags   
         prev_set = set(new_metadata['FLAGS'])    
-        
+
         for flag in curr_metadata['flags']:
             if flag not in prev_set:
                 return True
             else:
                 prev_set.remove(flag)
-        
-        if len(prev_set) > 0:
+
+        if prev_set:
             return True
-        
+
         #check labels
         prev_labels = set(new_metadata['X-GM-LABELS'])
-        
+
         if chat_metadata: #add gmvault-chats labels
             prev_labels.add(gmvault_db.GmailStorer.CHAT_GM_LABEL)
-            
-        
+
+
         for label in curr_metadata['labels']:
             if label not in prev_labels:
                 return True
             else:
                 prev_labels.remove(label)
-        
-        if len(prev_labels) > 0:
+
+        if prev_labels:
             return True
-        
+
         return False
     
     
@@ -400,13 +395,17 @@ class GMVaulter(object):
                 raise Exception("The email database %s is already associated with one or many logins: %s."\
                                 " Use option (-m, --multiple-db-owner) if you want to link it with %s" \
                                 % (self.db_root_dir, ", ".join(db_owners), self.login))
-        else:
-            if len(db_owners) == 0:
-                LOG.critical("Establish %s as the owner of the Gmvault db %s." % (self.login, self.db_root_dir))  
-            elif len(db_owners) > 0 and self.login not in db_owners:
-                LOG.critical("The email database %s is hosting emails from %s. It will now also store emails from %s" \
-                             % (self.db_root_dir, ", ".join(db_owners), self.login))
-                
+        elif len(db_owners) == 0:
+            LOG.critical(
+                f"Establish {self.login} as the owner of the Gmvault db {self.db_root_dir}."
+            )
+
+        elif len(db_owners) > 0 and self.login not in db_owners:
+            LOG.critical(
+                f'The email database {self.db_root_dir} is hosting emails from {", ".join(db_owners)}. It will now also store emails from {self.login}'
+            )
+
+
         #try to save db_owner in the list of owners
         self.gstorer.store_db_owner(self.login)
         
@@ -697,32 +696,32 @@ class GMVaulter(object):
         """
         
         # optimize nb of items
-        nb_items = self.NB_GRP_OF_ITEMS if len(imap_ids) >= self.NB_GRP_OF_ITEMS else len(imap_ids)
-        
+        nb_items = min(len(imap_ids), self.NB_GRP_OF_ITEMS)
+
         LOG.critical("Call Gmail to check the stored %ss against the Gmail %ss ids and see which ones have been deleted.\n\n"\
                      "This might take a few minutes ...\n" % (msg_type, msg_type)) 
-         
+
         #calculate the list elements to delete
         #query nb_items items in one query to minimise number of imap queries
         for group_imap_id in itertools.izip_longest(fillvalue=None, *[iter(imap_ids)]*nb_items):
-            
+
             # if None in list remove it
             if None in group_imap_id: 
                 group_imap_id = [ im_id for im_id in group_imap_id if im_id != None ]
-            
+
             #LOG.debug("Interrogate Gmail Server for %s" % (str(group_imap_id)))
             data = self.src.fetch(group_imap_id, imap_utils.GIMAPFetcher.GET_GMAIL_ID)
-            
+
             # syntax for 2.7 set comprehension { data[key][imap_utils.GIMAPFetcher.GMAIL_ID] for key in data }
             # need to create a list for 2.6
             db_gmail_ids.difference_update([data[key][imap_utils.GIMAPFetcher.GMAIL_ID] for key in data ])
-            
+
             if len(db_gmail_ids) == 0:
                 break
-        
+
         LOG.critical("Will delete %s %s(s) from gmvault db.\n" % (len(db_gmail_ids), msg_type) )
         for gm_id in db_gmail_ids:
-            LOG.critical("gm_id %s not in the Gmail server. Delete it." % (gm_id))
+            LOG.critical(f"gm_id {gm_id} not in the Gmail server. Delete it.")
             self.gstorer.delete_emails([(gm_id, db_gmail_ids_info[gm_id])], msg_type)
         
     def get_gmails_ids_left_to_sync(self, op_type, imap_ids):
@@ -778,49 +777,49 @@ class GMVaulter(object):
             return
         else:
             LOG.critical("Look for emails/chats that are in the Gmvault db but not in Gmail servers anymore.\n")
-            
+
             #get gmail_ids from db
             LOG.critical("Read all gmail ids from the Gmvault db. It might take a bit of time ...\n")
-            
+
             timer = gmvault_utils.Timer() # needed for enhancing the user information
             timer.start()
-            
+
             db_gmail_ids_info = self.gstorer.get_all_existing_gmail_ids()
-        
+
             LOG.critical("Found %s email(s) in the Gmvault db.\n" % (len(db_gmail_ids_info)) )
-        
+
             #create a set of keys
             db_gmail_ids = set(db_gmail_ids_info.keys())
-            
+
             # get all imap ids in All Mail
             self.src.select_folder('ALLMAIL') #go to all mail
             imap_ids = self.src.search(imap_utils.GIMAPFetcher.IMAP_ALL) #search all
-            
-            LOG.debug("Got %s emails imap_id(s) from the Gmail Server." % (len(imap_ids)))
-            
+
+            LOG.debug(f"Got {len(imap_ids)} emails imap_id(s) from the Gmail Server.")
+
             #delete supress emails from DB since last sync
             self._delete_sync(imap_ids, db_gmail_ids, db_gmail_ids_info, 'email')
-            
+
             # get all chats ids
             if self.src.is_visible('CHATS'):
-            
+
                 db_gmail_ids_info = self.gstorer.get_all_chats_gmail_ids()
-                
+
                 LOG.critical("Found %s chat(s) in the Gmvault db.\n" % (len(db_gmail_ids_info)) )
-                
+
                 self.src.select_folder('CHATS') #go to chats
                 chat_ids = self.src.search(imap_utils.GIMAPFetcher.IMAP_ALL)
-                
+
                 db_chat_ids = set(db_gmail_ids_info.keys())
-                
-                LOG.debug("Got %s chat imap_ids from the Gmail Server." % (len(chat_ids)))
-            
+
+                LOG.debug(f"Got {len(chat_ids)} chat imap_ids from the Gmail Server.")
+
                 #delete supress emails from DB since last sync
                 self._delete_sync(chat_ids, db_chat_ids, db_gmail_ids_info , 'chat')
             else:
                 LOG.critical("Chats IMAP Directory not visible on Gmail. Ignore deletion of chats.")
-                
-            
+
+
             LOG.critical("\nDeletion checkup done in %s." % (timer.elapsed_human_time()))
             
     
@@ -840,9 +839,12 @@ class GMVaulter(object):
         filename = self.OP_TO_FILENAME.get(op_type, None)
 
         if not filename:
-            raise Exception("Bad Operation (%s) in save_last_id. This should not happen, send the error to the software developers." % op_type)
+            raise Exception(
+                f"Bad Operation ({op_type}) in save_last_id. This should not happen, send the error to the software developers."
+            )
 
-        filepath = '%s/%s_%s' % (self.gstorer.get_info_dir(), self.login, filename)
+
+        filepath = f'{self.gstorer.get_info_dir()}/{self.login}_{filename}'
 
         with open(filepath, 'w') as f:
             json.dump({'last_id' : gm_id}, f)

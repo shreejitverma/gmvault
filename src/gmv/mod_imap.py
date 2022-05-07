@@ -93,14 +93,10 @@ def datetime_to_imap(dt):
     return dt.strftime("%d-%b-%Y %H:%M:%S %z")
 
 def to_unicode(s):
-    if isinstance(s, imapclient.six.binary_type):
-        return s.decode('ascii')
-    return s
+    return s.decode('ascii') if isinstance(s, imapclient.six.binary_type) else s
 
 def to_bytes(s):
-    if isinstance(s, imapclient.six.text_type):
-        return s.encode('ascii')
-    return s
+    return s.encode('ascii') if isinstance(s, imapclient.six.text_type) else s
 
 class IMAP4COMPSSL(imaplib.IMAP4_SSL): #pylint:disable=R0904
     """
@@ -193,11 +189,7 @@ class IMAP4COMPSSL(imaplib.IMAP4_SSL): #pylint:disable=R0904
         if self.decompressor is None:
             return self.sslobj.read(size)
 
-        if self.decompressor.unconsumed_tail:
-            data = self.decompressor.unconsumed_tail
-        else:
-            data = self.sslobj.read(8192) #Fixed buffer size. maybe change to 16384
-
+        data = self.decompressor.unconsumed_tail or self.sslobj.read(8192)
         return self.decompressor.decompress(data, size)
         
     def readline(self):
@@ -233,7 +225,7 @@ def seq_to_parenlist(flags):
         flags = (flags,)
     elif not isinstance(flags, (tuple, list)):
         raise ValueError('invalid flags list: %r' % flags)
-    return '(%s)' % ' '.join(flags)
+    return f"({' '.join(flags)})"
     
 class MonkeyIMAPClient(imapclient.IMAPClient): #pylint:disable=R0903,R0904
     """
@@ -257,7 +249,7 @@ class MonkeyIMAPClient(imapclient.IMAPClient): #pylint:disable=R0903,R0904
         self._checkok('authenticate', typ, data)
         return data[0]
     
-    def search(self, criteria): #pylint: disable=W0221
+    def search(self, criteria):    #pylint: disable=W0221
         """
            Perform a imap search or gmail search
         """
@@ -269,7 +261,9 @@ class MonkeyIMAPClient(imapclient.IMAPClient): #pylint:disable=R0903,R0904
         elif criteria.get('type','') == 'gmail':
             return self.gmail_search(criteria.get('req',''))
         else:
-            raise Exception("Unknown search type %s" % (criteria.get('type','no request type passed')))
+            raise Exception(
+                f"Unknown search type {criteria.get('type', 'no request type passed')}"
+            )
         
     def gmail_search(self, criteria):
         """
@@ -338,8 +332,5 @@ class MonkeyIMAPClient(imapclient.IMAPClient): #pylint:disable=R0903,R0904
         ret_code, _ = self._imap._simple_command('COMPRESS', 'DEFLATE') #pylint: disable=W0212
         if ret_code == 'OK':
             self._imap.activate_compression()
-        else:
-            #no errors for the moment
-            pass
 
         

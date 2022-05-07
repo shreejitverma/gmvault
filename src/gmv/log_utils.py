@@ -46,7 +46,7 @@ point to the old one.
         return sys.stdout
 
 #default log file
-DEFAULT_LOG = "%s/gmvault.log" % (os.getenv("HOME", "."))
+DEFAULT_LOG = f'{os.getenv("HOME", ".")}/gmvault.log'
 
 class LogbookLoggerFactory(object):
     """
@@ -141,13 +141,12 @@ class LoggerFactory(object):
         
         if cls._created:
             return cls._factory
-        
-        if the_type == STANDALONE:
-            cls._factory = LogbookLoggerFactory()
-            cls._created = True
-        else:
-            raise Exception("LoggerFactory type %s is unknown." % (the_type))
-        
+
+        if the_type != STANDALONE:
+            raise Exception(f"LoggerFactory type {the_type} is unknown.")
+
+        cls._factory = LogbookLoggerFactory()
+        cls._created = True
         return cls._factory
     
     @classmethod

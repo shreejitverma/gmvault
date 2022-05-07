@@ -35,10 +35,8 @@ class TestConf(unittest.TestCase): #pylint: disable=R0904
         """ get the org.ctbto.conf.tests path depending on where it is defined """
         
         fmod_path = gmv.conf.__path__
-        
-        test_dir = "%s/tests" % fmod_path[0]
-        
-        return test_dir
+
+        return f"{fmod_path[0]}/tests"
     
     def setUp(self): #pylint: disable=C0103
         # necessary for the include with the VAR ENV substitution
@@ -46,8 +44,7 @@ class TestConf(unittest.TestCase): #pylint: disable=R0904
 
         self.conf = gmv.conf.conf_helper.Conf(use_resource=False)
 
-        with codecs.open('%s/%s' % (TestConf._get_tests_dir_path(),
-                                    "test.config"), 'r', 'utf-8') as f:
+        with codecs.open(f'{TestConf._get_tests_dir_path()}/test.config', 'r', 'utf-8') as f:
             self.conf._read(f, "the file") #pylint: disable=W0212
 
     def tearDown(self): #pylint: disable=C0103

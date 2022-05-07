@@ -300,21 +300,23 @@ class GIMAPFetcher(object): #pylint:disable=R0902,R0904
             #try to login
             self.server.oauth2_login(self.credential['value'])
         else:
-            raise Exception("Unknown authentication method %s. Please use xoauth or passwd authentication " \
-                            % (self.credential['type']))
-            
+            raise Exception(
+                f"Unknown authentication method {self.credential['type']}. Please use xoauth or passwd authentication "
+            )
+
+
         #set connected to True to handle reconnection in case of failure
         self.once_connected = True
-        
+
         # check gmailness
         self.check_gmailness()
-         
+
         # find allmail chats and drafts folders
         self.find_folder_names()
 
         if go_to_current_folder and self.current_folder:
             self.server.select_folder(self.current_folder, readonly = self.readonly_folder)
-            
+
         #enable compression
         if gmvault_utils.get_conf_defaults().get_boolean('General', 'enable_imap_compression', True):
             self.enable_compression()
@@ -451,11 +453,14 @@ class GIMAPFetcher(object): #pylint:disable=R0902,R0904
     def get_folder_name(self, a_folder_name):
         """return real folder name from generic ones"""        
         if a_folder_name not in self.FOLDER_NAMES:
-            raise Exception("%s is not a predefined folder names. Please use one" % (a_folder_name) )
-            
-        folder = self.localized_folders.get(a_folder_name, {'loc_dir' : 'GMVNONAME'})['loc_dir']
+            raise Exception(
+                f"{a_folder_name} is not a predefined folder names. Please use one"
+            )
 
-        return folder
+
+        return self.localized_folders.get(a_folder_name, {'loc_dir': 'GMVNONAME'})[
+            'loc_dir'
+        ]
            
     @retry(3,1,2)  # try 3 times to reconnect with a sleep time of 1 sec and a backoff of 2. The fourth time will wait 4 sec
     def select_folder(self, a_folder_name, use_predef_names = True):
@@ -464,18 +469,21 @@ class GIMAPFetcher(object): #pylint:disable=R0902,R0904
         """
         if use_predef_names:
             if a_folder_name not in self.FOLDER_NAMES:
-                raise Exception("%s is not a predefined folder names. Please use one" % (a_folder_name) )
-            
+                raise Exception(
+                    f"{a_folder_name} is not a predefined folder names. Please use one"
+                )
+
+
             folder = self.localized_folders.get(a_folder_name, {'loc_dir' : 'GMVNONAME'})['loc_dir']
-            
+
             if self.current_folder != folder:
                 self.server.select_folder(folder, readonly = self.readonly_folder)
                 self.current_folder = folder
-            
+
         elif self.current_folder != a_folder_name:
             self.server.select_folder(a_folder_name, readonly = self.readonly_folder)
             self.current_folder = a_folder_name
-        
+
         return self.current_folder
         
     @retry(3,1,2) # try 3 times to reconnect with a sleep time of 1 sec and a backoff of 2. The fourth time will wait 4 sec
@@ -500,10 +508,12 @@ class GIMAPFetcher(object): #pylint:disable=R0902,R0904
         """
            Check that the server is a gmail server
         """
-        if not GIMAPFetcher.GMAIL_EXTENSION in self.get_capabilities():
-            raise Exception("GIMAPFetcher is not connected to a IMAP GMAIL server. Please check host (%s) and port (%s)" \
-                  % (self.host, self.port))
-        
+        if GIMAPFetcher.GMAIL_EXTENSION not in self.get_capabilities():
+            raise Exception(
+                f"GIMAPFetcher is not connected to a IMAP GMAIL server. Please check host ({self.host}) and port ({self.port})"
+            )
+
+
         return True
     
     @retry(3,1,2) # try 3 times to reconnect with a sleep time of 1 sec and a backoff of 2. The fourth time will wait 4 sec
@@ -535,12 +545,12 @@ class GIMAPFetcher(object): #pylint:disable=R0902,R0904
                 label = gmvault_utils.remove_consecutive_spaces_and_strip(label)
                 #add not in self.GMAIL_SPECIAL_DIRS_LOWER
                 if label.lower() in cls.GMAIL_SPECIAL_DIRS_LOWER:
-                    labels_str += '%s ' % (label)
+                    labels_str += f'{label} '
                 else:
                     label = label.replace('"', '\\"') #replace quote with escaped quotes
                     labels_str += '\"%s\" ' % (label)
-            labels_str = '%s%s' % (labels_str[:-1],')')
-        
+            labels_str = f'{labels_str[:-1]})'
+
         return labels_str
     
     @classmethod
@@ -552,17 +562,14 @@ class GIMAPFetcher(object): #pylint:disable=R0902,R0904
         """
         
         dirs = []
-        
-        i = 0
-        for lab in label.split('/'):
+
+        for i, lab in enumerate(label.split('/')):
             lab = gmvault_utils.remove_consecutive_spaces_and_strip(lab)
             if i == 0:
                 dirs.append(lab)
             else:
-                dirs.append('%s/%s' % (dirs[i-1], lab))
-            
-            i += 1
-        
+                dirs.append(f'{dirs[i-1]}/{lab}')
+
         return dirs
     
     def create_gmail_labels(self, labels, existing_folders):
@@ -710,9 +717,9 @@ class GIMAPFetcher(object): #pylint:disable=R0902,R0904
         """
         
         if self.login == "guillaume.aubert@gmail.com":
-            raise Exception("Error cannot activate erase_mailbox with %s" % (self.login))
+            raise Exception(f"Error cannot activate erase_mailbox with {self.login}")
 
-        LOG.info("Erase mailbox for account %s." % (self.login))
+        LOG.info(f"Erase mailbox for account {self.login}.")
 
         LOG.info("Delete folders")
 
@@ -729,14 +736,14 @@ class GIMAPFetcher(object): #pylint:disable=R0902,R0904
                or (the_dir == u'[Google Mail]') or (u'\\Trash' in flags) or \
                (u'\\Inbox' in flags) or (GIMAPFetcher.GENERIC_GMAIL_ALL in flags) or \
                (GIMAPFetcher.GENERIC_DRAFTS in flags) or (GIMAPFetcher.GENERIC_GMAIL_CHATS in flags):
-                LOG.info("Ignore folder %s" % (the_dir))           
+                LOG.info(f"Ignore folder {the_dir}")           
 
                 if (u'\\Trash' in flags): #keep trash folder name
                     trash_folder_name = the_dir
             else:
-                LOG.info("Delete folder %s" % (the_dir))
+                LOG.info(f"Delete folder {the_dir}")
                 self.server.delete_folder(the_dir)
-        
+
         self.select_folder('ALLMAIL')
 
         #self.server.store("1:*",'+X-GM-LABELS', '\\Trash')
@@ -744,7 +751,7 @@ class GIMAPFetcher(object): #pylint:disable=R0902,R0904
         #self.server.add_gmail_labels(self, messages, labels)
 
         LOG.info("Move emails to Trash.")
-        
+
         # get all imap ids in ALLMAIL
         imap_ids = self.search(GIMAPFetcher.IMAP_ALL)
 
@@ -754,25 +761,25 @@ class GIMAPFetcher(object): #pylint:disable=R0902,R0904
         if len(imap_ids) > 0:
             self.apply_labels_to(imap_ids, ['\\Trash'])
 
-            LOG.info("Got all imap_ids flagged to Trash : %s." % (imap_ids))
+            LOG.info(f"Got all imap_ids flagged to Trash : {imap_ids}.")
 
-        
+
         else:
             LOG.info("No messages to erase.")
 
         LOG.info("Delete emails from Trash.")
 
-        if trash_folder_name == None:
+        if trash_folder_name is None:
             raise Exception("No trash folder ???")
 
         self.select_folder(trash_folder_name, False)
-        
+
         # get all imap ids in ALLMAIL
         imap_ids = self.search(GIMAPFetcher.IMAP_ALL)
 
         if len(imap_ids) > 0:
             res = self.server.delete_messages(imap_ids)
-            LOG.debug("Delete messages result = %s" % (res))
+            LOG.debug(f"Delete messages result = {res}")
 
         LOG.info("Expunge everything.")
         self.server.expunge()

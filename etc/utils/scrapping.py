@@ -94,32 +94,32 @@ def get_from_pypi(url):
 
     for row in rows:
        
-       tds = row.findAll(lambda tag: tag.name == 'td')
+        tds = row.findAll(lambda tag: tag.name == 'td')
 
-       #print("tds = %s\n" %(tds))   
+        #print("tds = %s\n" %(tds))   
 
-       #ignore tds that are too small 
-       if len(tds) < 6:
-          #print("ignore td = %s\n" % (tds))
-          continue
+        #ignore tds that are too small 
+        if len(tds) < 6:
+           #print("ignore td = %s\n" % (tds))
+           continue
 
-       td_number = 0
-       name = None
-       for td in tds:
-           #print("td = %s\n" % (td))
-           if td_number == 0:
-              #print("td.a = %s\n" %(td.a))
-              name = 'pypi-%s' % (td.a.string)
-              res[name] = 0
-           elif td_number == 5:
-              #print("download nb = %s\n" %(td.string))
-              res[name] = int(td.string)
-           elif td_number == 6:
-              #reset it
-              td_number = 0
-              name = None
+        td_number = 0
+        name = None
+        for td in tds:
+                       #print("td = %s\n" % (td))
+            if td_number == 0:
+                              #print("td.a = %s\n" %(td.a))
+                name = f'pypi-{td.a.string}'
+                res[name] = 0
+            elif td_number == 5:
+               #print("download nb = %s\n" %(td.string))
+               res[name] = int(td.string)
+            elif td_number == 6:
+               #reset it
+               td_number = 0
+               name = None
 
-           td_number += 1
+            td_number += 1
 
     return res
 
@@ -148,8 +148,8 @@ def get_stats(return_type):
     lin_total   = 0
     mac_total   = 0
     v17_total   = 0
-    v18_total   = 0 
-    v181_total  = 0 
+    v18_total   = 0
+    v181_total  = 0
     pypi_total  = 0
     src_total   = 0
     for key in res.keys():
@@ -178,16 +178,16 @@ def get_stats(return_type):
         #print("%s, %s\n" % (key, res[key]))
         total += res[key]
 
-    total      += TOTAL_PREVIOUS_VERSIONS 
+    total      += TOTAL_PREVIOUS_VERSIONS
     win_total  += WIN_TOTAL_PREVIOUS_VERSIONS
     lin_total  += LIN_TOTAL_PREVIOUS_VERSIONS
     mac_total  += MAC_TOTAL_PREVIOUS_VERSIONS
-    pypi_total += PYPI_TOTAL_PREVIOUS_VERSIONS  
+    pypi_total += PYPI_TOTAL_PREVIOUS_VERSIONS
     src_total  += SRC_TOTAL_PREVIOUS_VERSIONS
 
-    the_str = ""
     if return_type == "TEXT":
 
+        the_str = ""
         the_str += "As of today %s, total of downloads (v1.7 and v1.8) = %s.\n" %(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),total)
         the_str += "win total = %s,\nmac total = %s,\nlin total = %s.\n" % (win_total, mac_total, lin_total)
         the_str += "pypi total = %s, src total = %s since .\n" % (pypi_total, src_total)

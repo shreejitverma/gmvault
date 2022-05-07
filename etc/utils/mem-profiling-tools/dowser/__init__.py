@@ -39,7 +39,7 @@ def template(name, **params):
     p = {'maincss': url("/main.css"),
          'home': url("/"),
          }
-    p.update(params)
+    p |= params
     return open(os.path.join(localDir, name)).read() % p
 
 
@@ -64,7 +64,7 @@ class Root:
     
     def tick(self):
         gc.collect()
-        
+
         typecounts = {}
         for obj in gc.get_objects():
             objtype = type(obj)
@@ -72,21 +72,21 @@ class Root:
                 typecounts[objtype] += 1
             else:
                 typecounts[objtype] = 1
-        
+
         for objtype, count in typecounts.iteritems():
-            typename = objtype.__module__ + "." + objtype.__name__
+            typename = f"{objtype.__module__}.{objtype.__name__}"
             if typename not in self.history:
                 self.history[typename] = [0] * self.samples
             self.history[typename].append(count)
-        
+
         samples = self.samples + 1
-        
+
         # Add dummy entries for any types which no longer exist
         for typename, hist in self.history.iteritems():
             diff = samples - len(hist)
             if diff > 0:
                 hist.extend([0] * diff)
-        
+
         # Truncate history to self.maxhistory
         if samples > self.maxhistory:
             for typename, hist in self.history.iteritems():
@@ -105,15 +105,20 @@ class Root:
             hist = self.history[typename]
             maxhist = max(hist)
             if maxhist > int(floor):
-                row = ('<div class="typecount">%s<br />'
-                       '<img class="chart" src="%s" /><br />'
-                       'Min: %s Cur: %s Max: %s <a href="%s">TRACE</a></div>'
-                       % (cgi.escape(typename),
-                          url("chart/%s" % typename),
-                          min(hist), hist[-1], maxhist,
-                          url("trace/%s" % typename),
-                          )
-                       )
+                row = (
+                    '<div class="typecount">%s<br />'
+                    '<img class="chart" src="%s" /><br />'
+                    'Min: %s Cur: %s Max: %s <a href="%s">TRACE</a></div>'
+                    % (
+                        cgi.escape(typename),
+                        url(f"chart/{typename}"),
+                        min(hist),
+                        hist[-1],
+                        maxhist,
+                        url(f"trace/{typename}"),
+                    )
+                )
+
                 rows.append(row)
         return template("graphs.html", output="\n".join(rows))
     index.exposed = True
@@ -128,13 +133,11 @@ class Root:
         draw.line([(i, int(height - (v * scale))) for i, v in enumerate(data)],
                   fill="#009900")
         del draw
-        
+
         f = StringIO()
         im.save(f, "PNG")
-        result = f.getvalue()
-        
         cherrypy.response.headers["Content-Type"] = "image/png"
-        return result
+        return f.getvalue()
     chart.exposed = True
     
     def trace(self, typename, objid=None):
@@ -154,7 +157,7 @@ class Root:
         rows = []
         for obj in gc.get_objects():
             objtype = type(obj)
-            if objtype.__module__ + "." + objtype.__name__ == typename:
+            if f"{objtype.__module__}.{objtype.__name__}" == typename:
                 rows.append("<p class='obj'>%s</p>"
                             % ReferrerTree(obj).get_repr(obj))
         if not rows:
@@ -168,7 +171,7 @@ class Root:
         for obj in all_objs:
             if id(obj) == objid:
                 objtype = type(obj)
-                if objtype.__module__ + "." + objtype.__name__ != typename:
+                if f"{objtype.__module__}.{objtype.__name__}" != typename:
                     rows = ["<h3>The object you requested is no longer "
                             "of the correct type.</h3>"]
                 else:
@@ -181,19 +184,24 @@ class Root:
                                         (k, get_repr(v)))
                         del v
                     rows.append('</div>')
-                    
+
                     # Referrers
                     rows.append('<div class="refs"><h3>Referrers (Parents)</h3>')
-                    rows.append('<p class="desc"><a href="%s">Show the '
-                                'entire tree</a> of reachable objects</p>'
-                                % url("/tree/%s/%s" % (typename, objid)))
+                    rows.append(
+                        (
+                            '<p class="desc"><a href="%s">Show the '
+                            'entire tree</a> of reachable objects</p>'
+                            % url(f"/tree/{typename}/{objid}")
+                        )
+                    )
+
                     tree = ReferrerTree(obj)
                     tree.ignore(all_objs)
                     for depth, parentid, parentrepr in tree.walk(maxdepth=1):
                         if parentid:
                             rows.append("<p class='obj'>%s</p>" % parentrepr)
                     rows.append('</div>')
-                    
+
                     # Referents
                     rows.append('<div class="refs"><h3>Referents (Children)</h3>')
                     for child in gc.get_referents(obj):
@@ -206,29 +214,29 @@ class Root:
     
     def tree(self, typename, objid):
         gc.collect()
-        
+
         rows = []
         objid = int(objid)
         all_objs = gc.get_objects()
         for obj in all_objs:
             if id(obj) == objid:
                 objtype = type(obj)
-                if objtype.__module__ + "." + objtype.__name__ != typename:
+                if f"{objtype.__module__}.{objtype.__name__}" != typename:
                     rows = ["<h3>The object you requested is no longer "
                             "of the correct type.</h3>"]
                 else:
                     rows.append('<div class="obj">')
-                    
+
                     tree = ReferrerTree(obj)
                     tree.ignore(all_objs)
                     for depth, parentid, parentrepr in tree.walk(maxresults=1000):
                         rows.append(parentrepr)
-                    
+
                     rows.append('</div>')
                 break
         if not rows:
             rows = ["<h3>The object you requested was not found.</h3>"]
-        
+
         params = {'output': "\n".join(rows),
                   'typename': cgi.escape(typename),
                   'objid': str(objid),
@@ -261,10 +269,10 @@ class ReferrerTree(reftree.Tree):
         if self.maxdepth and depth >= self.maxdepth:
             yield depth, 0, "---- Max depth reached ----"
             raise StopIteration
-        
+
         if isinstance(obj, ModuleType) and self.ignore_modules:
             raise StopIteration
-        
+
         refs = gc.get_referrers(obj)
         refiter = iter(refs)
         self.ignore(refs, refiter)
@@ -274,47 +282,49 @@ class ReferrerTree(reftree.Tree):
             if (isinstance(ref, FrameType)
                 and ref.f_code.co_filename in (thisfile, self.filename)):
                 continue
-            
+
             # Exclude all functions and classes from this module or reftree.
             mod = getattr(ref, "__module__", "")
             if "dowser" in mod or "reftree" in mod or mod == '__main__':
                 continue
-            
+
             # Exclude all parents in our ignore list.
             if id(ref) in self._ignore:
                 continue
-            
+
             # Yield the (depth, id, repr) of our object.
             yield depth, 0, '%s<div class="branch">' % (" " * depth)
             if id(ref) in self.seen:
-                yield depth, id(ref), "see %s above" % id(ref)
+                yield (depth, id(ref), f"see {id(ref)} above")
             else:
                 self.seen[id(ref)] = None
                 yield depth, id(ref), self.get_repr(ref, obj)
-                
-                for parent in self._gen(ref, depth + 1):
-                    yield parent
-            yield depth, 0, '%s</div>' % (" " * depth)
+
+                yield from self._gen(ref, depth + 1)
+            yield (depth, 0, f'{" " * depth}</div>')
     
     def get_repr(self, obj, referent=None):
         """Return an HTML tree block describing the given object."""
         objtype = type(obj)
-        typename = objtype.__module__ + "." + objtype.__name__
+        typename = f"{objtype.__module__}.{objtype.__name__}"
         prettytype = typename.replace("__builtin__.", "")
-        
-        name = getattr(obj, "__name__", "")
-        if name:
+
+        if name := getattr(obj, "__name__", ""):
             prettytype = "%s %r" % (prettytype, name)
-        
-        key = ""
-        if referent:
-            key = self.get_refkey(obj, referent)
-        return ('<a class="objectid" href="%s">%s</a> '
-                '<span class="typename">%s</span>%s<br />'
-                '<span class="repr">%s</span>'
-                % (url("/trace/%s/%s" % (typename, id(obj))),
-                   id(obj), prettytype, key, get_repr(obj, 100))
-                )
+
+        key = self.get_refkey(obj, referent) if referent else ""
+        return (
+            '<a class="objectid" href="%s">%s</a> '
+            '<span class="typename">%s</span>%s<br />'
+            '<span class="repr">%s</span>'
+            % (
+                url(f"/trace/{typename}/{id(obj)}"),
+                id(obj),
+                prettytype,
+                key,
+                get_repr(obj, 100),
+            )
+        )
     
     def get_refkey(self, obj, referent):
         """Return the dict key or attribute name of obj which refers to referent."""
@@ -322,11 +332,15 @@ class ReferrerTree(reftree.Tree):
             for k, v in obj.iteritems():
                 if v is referent:
                     return " (via its %r key)" % k
-        
-        for k in dir(obj) + ['__dict__']:
-            if getattr(obj, k, None) is referent:
-                return " (via its %r attribute)" % k
-        return ""
+
+        return next(
+            (
+                " (via its %r attribute)" % k
+                for k in dir(obj) + ['__dict__']
+                if getattr(obj, k, None) is referent
+            ),
+            "",
+        )
 
 
 if __name__ == '__main__':
