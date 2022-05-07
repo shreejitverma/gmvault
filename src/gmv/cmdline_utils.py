@@ -49,7 +49,7 @@ class CmdLineParser(argparse.ArgumentParser): #pylint: disable=R0904
            
         self.epilogue = None 
     
-    @classmethod 
+    @classmethod
     def convert_to_boolean(cls, val):
         """
            Convert yes, True, true, YES to boolean True and
@@ -61,7 +61,9 @@ class CmdLineParser(argparse.ArgumentParser): #pylint: disable=R0904
         elif lower_val in cls.BOOL_FALSE:
             return False
         else:
-            raise Exception("val %s should be in %s to be convertible to a boolean." % (val, cls.BOOL_VALS))
+            raise Exception(
+                f"val {val} should be in {cls.BOOL_VALS} to be convertible to a boolean."
+            )
    
     def print_help(self, out=sys.stderr): 
         """ 

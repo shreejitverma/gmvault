@@ -42,7 +42,7 @@ print("Gmvault version = %s\n" % version)
 README = os.path.join(os.path.dirname(__file__), './README.md')
 if os.path.exists(README):
     with open(README, 'r') as f:
-        long_description = f.read() + 'nn'
+        long_description = f'{f.read()}nn'
 else:
     long_description = 'Gmvault'
 

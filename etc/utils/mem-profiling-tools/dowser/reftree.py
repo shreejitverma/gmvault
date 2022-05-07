@@ -27,15 +27,13 @@ class Tree:
         """Walk the object tree, ignoring duplicates and circular refs."""
         self.seen = {}
         self.ignore(self, self.__dict__, self.obj, self.seen, self._ignore)
-        
+
         # Ignore the calling frame, its builtins, globals and locals
         self.ignore_caller()
-        
+
         self.maxdepth = maxdepth
-        count = 0
-        for result in self._gen(self.obj):
+        for count, result in enumerate(self._gen(self.obj), start=1):
             yield result
-            count += 1
             if maxresults and count >= maxresults:
                 yield 0, 0, "==== Max results reached ===="
                 raise StopIteration
@@ -59,20 +57,20 @@ def repr_str(obj):
 repr_unicode = repr_str
 
 def repr_frame(obj):
-    return "frame from %s line %s" % (obj.f_code.co_filename, obj.f_lineno)
+    return f"frame from {obj.f_code.co_filename} line {obj.f_lineno}"
 
 def get_repr(obj, limit=250):
     typename = getattr(type(obj), "__name__", None)
-    handler = globals().get("repr_%s" % typename, repr)
-    
+    handler = globals().get(f"repr_{typename}", repr)
+
     try:
         result = handler(obj)
     except:
         result = "unrepresentable object: %r" % sys.exc_info()[1]
-    
+
     if len(result) > limit:
-        result = result[:limit] + "..."
-    
+        result = f"{result[:limit]}..."
+
     return result
 
 
@@ -82,19 +80,18 @@ class ReferentTree(Tree):
         if self.maxdepth and depth >= self.maxdepth:
             yield depth, 0, "---- Max depth reached ----"
             raise StopIteration
-        
+
         for ref in gc.get_referents(obj):
             if id(ref) in self._ignore:
                 continue
             elif id(ref) in self.seen:
-                yield depth, id(ref), "!" + get_repr(ref)
+                yield (depth, id(ref), f"!{get_repr(ref)}")
                 continue
             else:
                 self.seen[id(ref)] = None
                 yield depth, id(ref), get_repr(ref)
-            
-            for child in self._gen(ref, depth + 1):
-                yield child
+
+            yield from self._gen(ref, depth + 1)
 
 
 class ReferrerTree(Tree):
@@ -103,27 +100,28 @@ class ReferrerTree(Tree):
         if self.maxdepth and depth >= self.maxdepth:
             yield depth, 0, "---- Max depth reached ----"
             raise StopIteration
-        
+
         refs = gc.get_referrers(obj)
         refiter = iter(refs)
         self.ignore(refs, refiter)
         for ref in refiter:
             # Exclude all frames that are from this module.
-            if isinstance(ref, FrameType):
-                if ref.f_code.co_filename == self.filename:
-                    continue
-            
+            if (
+                isinstance(ref, FrameType)
+                and ref.f_code.co_filename == self.filename
+            ):
+                continue
+
             if id(ref) in self._ignore:
                 continue
             elif id(ref) in self.seen:
-                yield depth, id(ref), "!" + get_repr(ref)
+                yield (depth, id(ref), f"!{get_repr(ref)}")
                 continue
             else:
                 self.seen[id(ref)] = None
                 yield depth, id(ref), get_repr(ref)
-            
-            for parent in self._gen(ref, depth + 1):
-                yield parent
+
+            yield from self._gen(ref, depth + 1)
 
 
 
@@ -134,15 +132,13 @@ class CircularReferents(Tree):
         self.stops = 0
         self.seen = {}
         self.ignore(self, self.__dict__, self.seen, self._ignore)
-        
+
         # Ignore the calling frame, its builtins, globals and locals
         self.ignore_caller()
-        
+
         self.maxdepth = maxdepth
-        count = 0
-        for result in self._gen(self.obj):
+        for count, result in enumerate(self._gen(self.obj), start=1):
             yield result
-            count += 1
             if maxresults and count >= maxresults:
                 yield 0, 0, "==== Max results reached ===="
                 raise StopIteration
@@ -151,24 +147,21 @@ class CircularReferents(Tree):
         if self.maxdepth and depth >= self.maxdepth:
             self.stops += 1
             raise StopIteration
-        
+
         if trail is None:
             trail = []
-        
+
         for ref in gc.get_referents(obj):
-            if id(ref) in self._ignore:
-                continue
-            elif id(ref) in self.seen:
+            if id(ref) in self._ignore or id(ref) in self.seen:
                 continue
             else:
                 self.seen[id(ref)] = None
-            
+
             refrepr = get_repr(ref)
             if id(ref) == id(self.obj):
                 yield trail + [refrepr,]
-            
-            for child in self._gen(ref, depth + 1, trail + [refrepr,]):
-                yield child
+
+            yield from self._gen(ref, depth + 1, trail + [refrepr,])
     
     def print_tree(self, maxresults=100, maxdepth=None):
         """Walk the object tree, pretty-printing each branch."""

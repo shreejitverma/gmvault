@@ -11,7 +11,7 @@ def progress_2():
 
 	steps = 100
 
-	for i in xrange(steps):
+	for _ in xrange(steps):
 		time.sleep(0.1)
 		percents += 1
 		#sys.stdout.write("\b" * (len(to_write)))
@@ -28,11 +28,11 @@ def progress_1():
 	toolbar_width = 100
 
 	# setup toolbar
-	sys.stdout.write("[%s]" % (" " * toolbar_width))
+	sys.stdout.write(f'[{" " * toolbar_width}]')
 	sys.stdout.flush()
 	sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
 
-	for i in xrange(toolbar_width):
+	for _ in xrange(toolbar_width):
 		time.sleep(0.1) # do real work here
 		# update the bar
 		sys.stdout.write("-")
