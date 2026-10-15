@@ -151,19 +151,25 @@ class GMVaultLauncher(object):
         super(GMVaultLauncher, self).__init__()
 
     @gmvault_utils.memoized
-    def _create_parser(self): #pylint: disable=R0915
+    def _create_parser(self):    #pylint: disable=R0915
         """
            Create the argument parser
            Return the created parser
         """
         parser = CmdLineParser()
-        
+
         parser.epilogue = GLOBAL_HELP_EPILOGUE
 
-        parser.add_argument("-v", '--version', action='version', version='Gmvault v%s' % (GMVAULT_VERSION))
-        
+        parser.add_argument(
+            "-v",
+            '--version',
+            action='version',
+            version=f'Gmvault v{GMVAULT_VERSION}',
+        )
+
+
         subparsers = parser.add_subparsers(title='subcommands', help='valid subcommands.')
-         
+
         # A sync command
         sync_parser = subparsers.add_parser('sync', \
                                             help='synchronize with a given gmail account.')
@@ -174,11 +180,11 @@ class GMVaultLauncher(object):
         sync_parser.add_argument('-t', '-type', '--type', \
                                  action='store', dest='type', \
                                  default='full', help='type of synchronisation: full|quick|custom. (default: full)')
-        
+
         sync_parser.add_argument("-d", "--db-dir", \
                                  action='store', help="Database root directory. (default: $HOME/gmvault-db)",\
                                  dest="db_dir", default= self.DEFAULT_GMVAULT_DB)
-               
+
         # for both when seen add const empty otherwise not_seen
         # this allow to distinguish between an empty value and a non seen option
         sync_parser.add_argument("-y", "--oauth2", \
@@ -196,11 +202,11 @@ class GMVaultLauncher(object):
         sync_parser.add_argument("--renew-passwd", \
                           help="renew the stored password via an interactive authentication session. (not recommended)",
                           action= 'store_const' , dest="passwd", const='renew')
-        
+
         sync_parser.add_argument("--store-passwd", \
                           help="use interactive password authentication, encrypt and store the password. (not recommended)",
                           action= 'store_const' , dest="passwd", const='store')
-        
+
         #sync_parser.add_argument("-r", "--imap-req", type = get_unicode_commandline_arg, metavar = "REQ", \
         #                         help="Imap request to restrict sync.",\
         #                         dest="imap_request", default=None)
@@ -208,98 +214,98 @@ class GMVaultLauncher(object):
         sync_parser.add_argument("-r", "--imap-req", metavar = "REQ", \
                                  help="Imap request to restrict sync.",\
                                  dest="imap_request", default=None)
-        
+
         sync_parser.add_argument("-g", "--gmail-req", metavar = "REQ", \
                                  help="Gmail search request to restrict sync as defined in"\
                                       "https://support.google.com/mail/bin/answer.py?hl=en&answer=7190",\
                                  dest="gmail_request", default=None)
-        
+
         # activate the resume mode --restart is deprecated
         sync_parser.add_argument("--resume", "--restart", \
                                  action='store_true', dest='restart', \
                                  default=False, help= 'Resume the sync action from the last saved gmail id.')
-        
+
         # activate the resume mode --restart is deprecated
         sync_parser.add_argument("--emails-only", \
                                  action='store_true', dest='only_emails', \
                                  default=False, help= 'Only sync emails.')
-        
+
         # activate the resume mode --restart is deprecated
         sync_parser.add_argument("--chats-only", \
                                  action='store_true', dest='only_chats', \
                                  default=False, help= 'Only sync chats.')
-        
+
         sync_parser.add_argument("-e", "--encrypt", \
                                  help="encrypt stored email messages in the database.",\
                                  action='store_true',dest="encrypt", default=False)
-        
+
         sync_parser.add_argument("-c", "--check-db", metavar = "VAL", \
                           help="enable/disable the removal from the gmvault db of the emails "\
                                "that have been deleted from the given gmail account. VAL = yes or no.",\
                           dest="db_cleaning", default=None)
-        
+
         sync_parser.add_argument("-m", "--multiple-db-owner", \
                                  help="Allow the email database to be synchronized with emails from multiple accounts.",\
                                  action='store_true',dest="allow_mult_owners", default=False)
-        
+
         # activate the restart mode
         sync_parser.add_argument("--no-compression", \
                                  action='store_false', dest='compression', \
                                  default=True, help= 'disable email storage compression (gzip).')
-        
+
         sync_parser.add_argument("--server", metavar = "HOSTNAME", \
                               action='store', help="Gmail imap server hostname. (default: imap.gmail.com)",\
                               dest="host", default="imap.gmail.com")
-            
+
         sync_parser.add_argument("--port", metavar = "PORT", \
                               action='store', help="Gmail imap server port. (default: 993)",\
                               dest="port", default=993)
-        
+
         sync_parser.add_argument("--debug", "-debug", \
                               action='store_true', help="Activate debugging info",\
                               dest="debug", default=False)
-        
-        
+
+
         sync_parser.set_defaults(verb='sync')
-    
+
         sync_parser.epilogue = SYNC_HELP_EPILOGUE
-        
+
         # restore command
         rest_parser = subparsers.add_parser('restore', \
                                             help='restore gmvault-db to a given email account.')
         #email argument can be optional so it should be an option
         rest_parser.add_argument('email', \
                                  action='store', default='empty_$_email', help='email account to restore.')
-        
+
         # restore typ
         rest_parser.add_argument('-t', '-type', '--type', \
                                  action='store', dest='type', \
                                  default='full', help='type of restoration: full|quick. (default: full)')
-        
+
         # add a label
         rest_parser.add_argument('-a', '--apply-label' , \
                                  action='store', dest='apply_label', \
                                  default=None, help='Apply a label to restored emails')
-        
+
         # activate the resume mode --restart is deprecated
         rest_parser.add_argument("--resume", "--restart", \
                                  action='store_true', dest='restart', \
                                  default=False, help= 'Restart from the last saved gmail id.')
-                                 
+
         # activate the resume mode --restart is deprecated
         rest_parser.add_argument("--emails-only", \
                                  action='store_true', dest='only_emails', \
                                  default=False, help= 'Only sync emails.')
-        
+
         # activate the resume mode --restart is deprecated
         rest_parser.add_argument("--chats-only", \
                                  action='store_true', dest='only_chats', \
                                  default=False, help= 'Only sync chats.')
-        
+
         rest_parser.add_argument("-d", "--db-dir", \
                                  action='store', help="Database root directory. (default: $HOME/gmvault-db)",\
                                  dest="db_dir", default= self.DEFAULT_GMVAULT_DB)
-               
+
         # for both when seen add const empty otherwise not_seen
         # this allow to distinguish between an empty value and a non seen option
         rest_parser.add_argument("-y", "--oauth2", \
@@ -317,19 +323,19 @@ class GMVaultLauncher(object):
         rest_parser.add_argument("--server", metavar = "HOSTNAME", \
                               action='store', help="Gmail imap server hostname. (default: imap.gmail.com)",\
                               dest="host", default="imap.gmail.com")
-            
+
         rest_parser.add_argument("--port", metavar = "PORT", \
                               action='store', help="Gmail imap server port. (default: 993)",\
                               dest="port", default=993)
-        
+
         rest_parser.add_argument("--debug", "-debug", \
                               action='store_true', help="Activate debugging info",\
                               dest="debug", default=False)
-        
+
         rest_parser.set_defaults(verb='restore')
-    
+
         rest_parser.epilogue = REST_HELP_EPILOGUE
-        
+
         # check_db command
         check_parser = subparsers.add_parser('check', \
                                             help='check and clean the gmvault-db disk database.')
@@ -337,11 +343,11 @@ class GMVaultLauncher(object):
         #email argument
         check_parser.add_argument('email', \
                                  action='store', default='empty_$_email', help='gmail account against which to check.')
-        
+
         check_parser.add_argument("-d", "--db-dir", \
                                  action='store', help="Database root directory. (default: $HOME/gmvault-db)",\
                                  dest="db_dir", default= self.DEFAULT_GMVAULT_DB)
-     
+
         # for both when seen add const empty otherwise not_seen
         # this allow to distinguish between an empty value and a non seen option
         check_parser.add_argument("-y", "--oauth2", \
@@ -359,17 +365,17 @@ class GMVaultLauncher(object):
         check_parser.add_argument("--server", metavar = "HOSTNAME", \
                               action='store', help="Gmail imap server hostname. (default: imap.gmail.com)",\
                               dest="host", default="imap.gmail.com")
-            
+
         check_parser.add_argument("--port", metavar = "PORT", \
                               action='store', help="Gmail imap server port. (default: 993)",\
                               dest="port", default=993)
-        
+
         check_parser.add_argument("--debug", "-debug", \
                               action='store_true', help="Activate debugging info",\
                               dest="debug", default=False)
-        
+
         check_parser.set_defaults(verb='check')
-        
+
         # export command
         export_parser = subparsers.add_parser('export', \
                                             help='Export the gmvault-db database to another format.')
@@ -381,9 +387,16 @@ class GMVaultLauncher(object):
                                  action='store', help="Database root directory. (default: $HOME/gmvault-db)",\
                                  dest="db_dir", default= self.DEFAULT_GMVAULT_DB)
 
-        export_parser.add_argument('-t', '-type', '--type', \
-                          action='store', dest='type', \
-                          default='mbox', help='type of export: %s. (default: mbox)' % self.EXPORT_TYPE_NAMES)
+        export_parser.add_argument(
+            '-t',
+            '-type',
+            '--type',
+            action='store',
+            dest='type',
+            default='mbox',
+            help=f'type of export: {self.EXPORT_TYPE_NAMES}. (default: mbox)',
+        )
+
 
         export_parser.add_argument('-l', '--label', \
                                    action='append', dest='label', \
@@ -394,7 +407,7 @@ class GMVaultLauncher(object):
                        dest="debug", default=False)
 
         export_parser.set_defaults(verb='export')
-        
+
         export_parser.epilogue = EXPORT_HELP_EPILOGUE
 
         return parser
@@ -464,7 +477,7 @@ class GMVaultLauncher(object):
              
         return parsed_args
     
-    def parse_args(self): #pylint: disable=R0912
+    def parse_args(self):    #pylint: disable=R0912
         """ Parse command line arguments 
             
             :returns: a dict that contains the arguments
@@ -473,93 +486,91 @@ class GMVaultLauncher(object):
             
         """
         parser = self._create_parser()
-          
+
         options = parser.parse_args()
-        
+
         LOG.debug("Namespace = %s\n" % (options))
-        
-        parsed_args = { }
-                
-        parsed_args['command'] = options.verb
-        
+
+        parsed_args = {'command': options.verb}
+
         if parsed_args.get('command', '') == 'sync':
             
             # parse common arguments for sync and restore
             self._parse_common_args(options, parser, parsed_args, self.SYNC_TYPES)
-            
+
             # handle the search requests (IMAP or GMAIL dialect)
             if options.imap_request and options.gmail_request:
                 parser.error('Please use only one search request type. You can use --imap-req or --gmail-req.')
             elif not options.imap_request and not options.gmail_request:
                 LOG.debug("No search request type passed: Get everything.")
                 parsed_args['request']   = {'type': 'imap', 'req':'ALL'}
-            elif options.gmail_request and not options.imap_request:
+            elif options.gmail_request:
                 parsed_args['request']  = { 'type': 'gmail', 'req' : self._clean_imap_or_gm_request(options.gmail_request)}
             else:
                 parsed_args['request']  = { 'type':'imap',  'req' : self._clean_imap_or_gm_request(options.imap_request)}
-                
+
             # handle emails or chats only
             if options.only_emails and options.only_chats:
                 parser.error("--emails-only and --chats-only cannot be used together. Please choose one.")
-           
+
             parsed_args['emails_only'] = options.only_emails
             parsed_args['chats_only']  = options.only_chats
-        
+
             # add db-cleaning
             # if request passed put it False unless it has been forced by the user
             # default is True (db-cleaning done)
             #default 
             parsed_args['db-cleaning'] = True
-            
+
             # if there is a value then it is forced
             if options.db_cleaning: 
                 parsed_args['db-cleaning'] = parser.convert_to_boolean(options.db_cleaning)
-            
+
             #elif parsed_args['request']['req'] != 'ALL' and not options.db_cleaning:
             #    #else if we have a request and not forced put it to false
             #    parsed_args['db-cleaning'] = False
-                
+
             if parsed_args['db-cleaning']:
                 LOG.critical("Activate Gmvault db cleaning.")
             else:
                 LOG.critical("Disable deletion of emails that are in Gmvault db and not anymore in Gmail.")
-                
+
             #add encryption option
             parsed_args['encrypt'] = options.encrypt
 
             #add ownership checking
             parsed_args['ownership_control'] = not options.allow_mult_owners
-            
+
             #compression flag
             parsed_args['compression'] = options.compression
-                
-                
+
+
         elif parsed_args.get('command', '') == 'restore':
-            
+
             # parse common arguments for sync and restore
             self._parse_common_args(options, parser, parsed_args, self.RESTORE_TYPES)
-            
+
             # apply restore labels if there is any
             parsed_args['apply_label'] = options.apply_label
-            
+
             parsed_args['restart'] = options.restart
-            
+
             # handle emails or chats only
             if options.only_emails and options.only_chats:
                 parser.error("--emails-only and --chats-only cannot be used together. Please choose one.")
-           
+
             parsed_args['emails_only'] = options.only_emails
             parsed_args['chats_only']  = options.only_chats
-            
+
         elif parsed_args.get('command', '') == 'check':
-            
+
             #add defaults for type
             options.type    = 'full'
             options.restart = False
-            
+
             # parse common arguments for sync and restore
             self._parse_common_args(options, parser, parsed_args, self.CHECK_TYPES)
-    
+
         elif parsed_args.get('command', '') == 'export':
             parsed_args['labels']     = options.label
             parsed_args['db-dir']     = options.db_dir
@@ -567,15 +578,15 @@ class GMVaultLauncher(object):
             if options.type.lower() in self.EXPORT_TYPES:
                 parsed_args['type'] = options.type.lower()
             else:
-                parser.error('Unknown type for command export. The type should be one of %s' % self.EXPORT_TYPE_NAMES)
+                parser.error(
+                    f'Unknown type for command export. The type should be one of {self.EXPORT_TYPE_NAMES}'
+                )
+
             parsed_args['debug'] = options.debug
 
-        elif parsed_args.get('command', '') == 'config':
-            pass
-    
         #add parser
         parsed_args['parser'] = parser
-        
+
         return parsed_args
     
     @classmethod
@@ -600,7 +611,7 @@ class GMVaultLauncher(object):
         """
         export_type = cls.EXPORT_TYPES[args['type']]
         output_dir = export_type(args['output-dir'])
-        LOG.critical("Export gmvault-db as a %s mailbox." % (args['type']))
+        LOG.critical(f"Export gmvault-db as a {args['type']} mailbox.")
         exporter = gmvault_export.GMVaultExporter(args['db-dir'], output_dir,
             labels=args['labels'])
         exporter.export()
@@ -645,58 +656,61 @@ class GMVaultLauncher(object):
         #print error report
         LOG.critical(restorer.get_operation_report()) 
             
-    @classmethod        
+    @classmethod
     def _sync(cls, args, credential):
         """
            Execute All synchronisation operations
         """
         LOG.critical("Connect to Gmail server.\n")
-        
+
         # handle credential in all levels
         syncer = gmvault.GMVaulter(args['db-dir'], args['host'], args['port'], \
                                    args['email'], credential, read_only_access = True, \
                                    use_encryption = args['encrypt'])
         #full sync is the first one
         if args.get('type', '') == 'full':
-        
+
             #choose full sync. Ignore the request
             syncer.sync({ 'mode': 'full', 'type': 'imap', 'req': 'ALL' } , compress_on_disk = args['compression'], \
                         db_cleaning = args['db-cleaning'], ownership_checking = args['ownership_control'],\
                         restart = args['restart'], emails_only = args['emails_only'], chats_only = args['chats_only'])
-        
+
         elif args.get('type', '') == 'auto':
-        
+
             #choose auto sync. imap request = ALL and restart = True
             syncer.sync({ 'mode': 'auto', 'type': 'imap', 'req': 'ALL' } , compress_on_disk = args['compression'], \
                         db_cleaning = args['db-cleaning'], ownership_checking = args['ownership_control'],\
                         restart = True, emails_only = args['emails_only'], chats_only = args['chats_only'])
-              
+
         elif args.get('type', '') == 'quick':
             
             #sync only the last x days (taken in defaults) in order to be quick 
             #(cleaning is import here because recent days might move again
-            
+
             # today - 2 months
             today = datetime.date.today()
             begin = today - datetime.timedelta(gmvault_utils.get_conf_defaults().getint("Sync", "quick_days", 8))
-            
-            LOG.critical("Quick sync mode. Check for new emails since %s." % (begin.strftime('%d-%b-%Y')))
-            
+
+            LOG.critical(
+                f"Quick sync mode. Check for new emails since {begin.strftime('%d-%b-%Y')}."
+            )
+
+
             # today + 1 day
             end   = today + datetime.timedelta(1)
-            
+
             req   = { 'type' : 'imap', \
                       'req'  : syncer.get_imap_request_btw_2_dates(begin, end), \
                       'mode' : 'quick'}
-            
+
             syncer.sync( req, \
                          compress_on_disk = args['compression'], \
                          db_cleaning = args['db-cleaning'], \
                          ownership_checking = args['ownership_control'], restart = args['restart'], \
                          emails_only = args['emails_only'], chats_only = args['chats_only'])
-            
+
         elif args.get('type', '') == 'custom':
-            
+
             #convert args to unicode
             u_str = gmvault_utils.convert_argv_to_unicode(args['request']['req'])
             args['request']['req']     = u_str
@@ -706,14 +720,14 @@ class GMVaultLauncher(object):
             # pass an imap request. Assume that the user know what to do here
             LOG.critical("Perform custom synchronisation with %s request: %s.\n" \
                          % (args['request']['type'], args['request']['req']))
-            
+
             syncer.sync(args['request'], compress_on_disk = args['compression'], db_cleaning = args['db-cleaning'], \
                         ownership_checking = args['ownership_control'], restart = args['restart'], \
                         emails_only = args['emails_only'], chats_only = args['chats_only'])
         else:
             raise ValueError("Unknown synchronisation mode %s. Please use full (default), quick or custom.")
-        
-        
+
+
         #print error report
         LOG.critical(syncer.get_operation_report())
     
@@ -811,18 +825,24 @@ def activate_debug_mode():
        Activate debugging logging
     """
     LOG.critical("Debugging logs are going to be saved in file %s/gmvault.log.\n" % os.getenv("HOME","."))
-    log_utils.LoggerFactory.setup_cli_app_handler(log_utils.STANDALONE, activate_log_file=True, \
-                               console_level= 'DEBUG', file_path="%s/gmvault.log" % os.getenv("HOME","."))
+    log_utils.LoggerFactory.setup_cli_app_handler(
+        log_utils.STANDALONE,
+        activate_log_file=True,
+        console_level='DEBUG',
+        file_path=f'{os.getenv("HOME", ".")}/gmvault.log',
+    )
 
-def sigusr1_handler(signum, frame): #pylint:disable=W0613
+def sigusr1_handler(signum, frame):    #pylint:disable=W0613
     """
       Signal handler to get stack trace if the program is stuck
     """
 
     filename = './gmvault.traceback.txt'
 
-    print("GMVAULT: Received SIGUSR1 -- Printing stack trace in %s..." %
-          os.path.abspath(filename))
+    print(
+        f"GMVAULT: Received SIGUSR1 -- Printing stack trace in {os.path.abspath(filename)}..."
+    )
+
 
     with open(filename, 'a') as f:
         traceback.print_stack(file=f)

@@ -85,14 +85,14 @@ class TestGMVCMD(unittest.TestCase): #pylint:disable-msg=R0904
            Test commandline args
         """
         gmv_cmd.init_logging()
-        
+
         # test 1: default
         sys.argv = ['gmvault.py', 'sync', self.login]
-        
+
         gmvlt = gmv_cmd.GMVaultLauncher()
-    
+
         args = gmvlt.parse_args()
-        
+
         #check args
         self.assertEquals(args['command'],  'sync')
         self.assertEquals(args['type'],     'full')
@@ -103,18 +103,18 @@ class TestGMVCMD(unittest.TestCase): #pylint:disable-msg=R0904
         self.assertEquals(args['host'],'imap.gmail.com')
         self.assertEquals(args['port'], 993)
         self.assertEquals(args['db-cleaning'], True)
-        self.assertEquals(args['db-dir'],'%s/gmvault-db' % (os.environ['HOME']))
-            
-        
+        self.assertEquals(args['db-dir'], f"{os.environ['HOME']}/gmvault-db")
+                
+
         # test 2: do imap search
         sys.argv = ['gmvault.py', 'sync','-t', 'custom',
                     '-r', 'Since 1-Nov-2011 Before 4-Nov-2011', \
                     '--db-dir','/tmp/new-db-1', self.login]
-        
+
         gmvlt = gmv_cmd.GMVaultLauncher()
-    
+
         args = gmvlt.parse_args()
-        
+
         #check args
         self.assertEquals(args['command'],  'sync')
         self.assertEquals(args['type'],     'custom')
@@ -126,17 +126,17 @@ class TestGMVCMD(unittest.TestCase): #pylint:disable-msg=R0904
         self.assertEquals(args['port'], 993)
         self.assertEquals(args['db-cleaning'], True)
         self.assertEquals(args['db-dir'],'/tmp/new-db-1')
-        
+
         # test 2: do gmail search
         sys.argv = ['gmvault.py', 'sync','-t', 'custom',
                     '-g', 'subject:Chandeleur bis', \
                     '--db-dir','/tmp/new-db-1', self.login]
-        
+
         #do same as in bootstrap
         gmvlt = gmv_cmd.GMVaultLauncher()
-    
+
         args = gmvlt.parse_args()
-        
+
         #check args
         self.assertEquals(args['command'],  'sync')
         self.assertEquals(args['type'],     'custom')
@@ -148,18 +148,18 @@ class TestGMVCMD(unittest.TestCase): #pylint:disable-msg=R0904
         self.assertEquals(args['port'], 993)
         self.assertEquals(args['db-cleaning'], True)
         self.assertEquals(args['db-dir'],'/tmp/new-db-1')
-        
+
         #test3 emails only
         sys.argv = ['gmvault.py', 'sync','-t', 'custom',
                     '-g', 'subject:Chandeleur bis', \
                     '--db-dir','/tmp/new-db-1', \
                     '--emails-only', self.login]
-        
+
         #with emails only
         gmvlt = gmv_cmd.GMVaultLauncher()
-    
+
         args = gmvlt.parse_args()
-        
+
         #check args
         self.assertEquals(args['emails_only'], True)
         self.assertEquals(args['chats_only'], False)
@@ -173,17 +173,17 @@ class TestGMVCMD(unittest.TestCase): #pylint:disable-msg=R0904
         self.assertEquals(args['port'], 993)
         self.assertEquals(args['db-cleaning'], True)
         self.assertEquals(args['db-dir'],'/tmp/new-db-1')
-        
+
         #test chats only
         sys.argv = ['gmvault.py', 'sync','-t', 'custom',
                     '-g', 'subject:Chandeleur bis', \
                     '--db-dir','/tmp/new-db-1', \
                     '--chats-only', self.login]
-        
+
         gmvlt = gmv_cmd.GMVaultLauncher()
-    
+
         args = gmvlt.parse_args()
-        
+
         #check args
         self.assertEquals(args['chats_only'], True)
         self.assertEquals(args['emails_only'], False)
@@ -201,20 +201,20 @@ class TestGMVCMD(unittest.TestCase): #pylint:disable-msg=R0904
         self.assertEquals(args['compression'], True)
         self.assertEquals(args['debug'], False)
         self.assertEquals(args['restart'], False)
- 
- 
+
+
         #test5 chats only
         sys.argv = ['gmvault.py', 'sync','-t', 'custom',
                     '-g', 'subject:Chandeleur bis', \
                     '--db-dir','/tmp/new-db-1', \
                     '--check-db', 'no', '--resume', '--debug',\
                     '--no-compression', self.login]
-        
+
         #with emails only
         gmvlt = gmv_cmd.GMVaultLauncher()
-    
+
         args = gmvlt.parse_args()
-        
+
         #check args
         self.assertEquals(args['chats_only'], False)
         self.assertEquals(args['emails_only'], False)
@@ -463,7 +463,7 @@ class TestGMVCMD(unittest.TestCase): #pylint:disable-msg=R0904
 
         credential = credential_utils.CredentialHelper.get_credential(args)
 
-        print("CREDENTIALS:%s" % (credential))
+        print(f"CREDENTIALS:{credential}")
 
         syncer = gmvault.GMVaulter(args['db-dir'], args['host'], args['port'], \
                                        args['email'], credential)
@@ -496,7 +496,7 @@ class TestGMVCMD(unittest.TestCase): #pylint:disable-msg=R0904
 
         credential = credential_utils.CredentialHelper.get_credential(args)
 
-        print("CREDENTIALS:%s" % (credential))
+        print(f"CREDENTIALS:{credential}")
 
         syncer = gmvault.GMVaulter(args['db-dir'], args['host'], args['port'], \
                                        args['email'], credential)

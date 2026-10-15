@@ -31,7 +31,7 @@ class AESEncryptor(object):
 
     @staticmethod
     def _unpad(s):
-        return s[:-ord(s[len(s)-1:])]
+        return s[:-ord(s[-1:])]
 
 if __name__ == '__main__':
     secrets = ['Do or do not there is no try', 'I love Python !!!!']

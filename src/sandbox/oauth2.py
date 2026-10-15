@@ -133,7 +133,7 @@ def AccountsUrl(command):
   Returns:
     A URL for the given command.
   """
-  return '%s/%s' % (GOOGLE_ACCOUNTS_BASE_URL, command)
+  return f'{GOOGLE_ACCOUNTS_BASE_URL}/{command}'
 
 
 def UrlEscape(text):
@@ -155,9 +155,10 @@ def FormatUrlParams(params):
   Returns:
     A URL query string version of the given parameters.
   """
-  param_fragments = []
-  for param in sorted(params.iteritems(), key=lambda x: x[0]):
-    param_fragments.append('%s=%s' % (param[0], UrlEscape(param[1])))
+  param_fragments = [
+      f'{param[0]}={UrlEscape(param[1])}'
+      for param in sorted(params.iteritems(), key=lambda x: x[0])
+  ]
   return '&'.join(param_fragments)
 
 
@@ -173,13 +174,13 @@ def GeneratePermissionUrl(client_id, scope='https://mail.google.com/'):
   Returns:
     A URL that the user should visit in their browser.
   """
-  params = {}
-  params['client_id'] = client_id
-  params['redirect_uri'] = REDIRECT_URI
-  params['scope'] = scope
-  params['response_type'] = 'code'
-  return '%s?%s' % (AccountsUrl('o/oauth2/auth'),
-                    FormatUrlParams(params))
+  params = {
+      'client_id': client_id,
+      'redirect_uri': REDIRECT_URI,
+      'scope': scope,
+      'response_type': 'code',
+  }
+  return f"{AccountsUrl('o/oauth2/auth')}?{FormatUrlParams(params)}"
 
 
 def AuthorizeTokens(client_id, client_secret, authorization_code):
@@ -197,12 +198,13 @@ def AuthorizeTokens(client_id, client_secret, authorization_code):
     The decoded response from the Google Accounts server, as a dict. Expected
     fields include 'access_token', 'expires_in', and 'refresh_token'.
   """
-  params = {}
-  params['client_id'] = client_id
-  params['client_secret'] = client_secret
-  params['code'] = authorization_code
-  params['redirect_uri'] = REDIRECT_URI
-  params['grant_type'] = 'authorization_code'
+  params = {
+      'client_id': client_id,
+      'client_secret': client_secret,
+      'code': authorization_code,
+      'redirect_uri': REDIRECT_URI,
+      'grant_type': 'authorization_code',
+  }
   request_url = AccountsUrl('o/oauth2/token')
 
   response = urllib.urlopen(request_url, urllib.urlencode(params)).read()
@@ -222,11 +224,12 @@ def RefreshToken(client_id, client_secret, refresh_token):
     The decoded response from the Google Accounts server, as a dict. Expected
     fields include 'access_token', 'expires_in', and 'refresh_token'.
   """
-  params = {}
-  params['client_id'] = client_id
-  params['client_secret'] = client_secret
-  params['refresh_token'] = refresh_token
-  params['grant_type'] = 'refresh_token'
+  params = {
+      'client_id': client_id,
+      'client_secret': client_secret,
+      'refresh_token': refresh_token,
+      'grant_type': 'refresh_token',
+  }
   request_url = AccountsUrl('o/oauth2/token')
 
   response = urllib.urlopen(request_url, urllib.urlencode(params)).read()
@@ -282,7 +285,7 @@ def TestSmtpAuthentication(user, auth_string):
   smtp_conn.set_debuglevel(True)
   smtp_conn.ehlo('test')
   smtp_conn.starttls()
-  smtp_conn.docmd('AUTH', 'XOAUTH2 ' + base64.b64encode(auth_string))
+  smtp_conn.docmd('AUTH', f'XOAUTH2 {base64.b64encode(auth_string)}')
 
 
 def RequireOptions(options, *args):

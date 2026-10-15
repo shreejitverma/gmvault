@@ -59,9 +59,7 @@ class GMVaultExporter(object):
 
     def want_label(self, label):
         """ helper indicating is a label is needed"""
-        if self.labels:
-            return label in self.labels
-        return label != self.GM_ALL
+        return label in self.labels if self.labels else label != self.GM_ALL
 
     def export(self):
         """core method for starting the export """
@@ -79,31 +77,31 @@ class GMVaultExporter(object):
         """ export organised by ids """
         exported_labels = "default labels"
         if self.labels:
-            exported_labels = "labels " + self.printable_label_list(self.labels)
-        LOG.critical("Start %s export for %s." % (kind, exported_labels))
+            exported_labels = f"labels {self.printable_label_list(self.labels)}"
+        LOG.critical(f"Start {kind} export for {exported_labels}.")
 
         timer = gmvault_utils.Timer()
         timer.start()
-        done = 0
-
-        for a_id in ids:
+        for done, a_id in enumerate(ids, start=1):
             meta, msg = self.storer.unbury_email(a_id)
 
             folders = [default_folder]
             if use_labels:
-                add_labels = meta[gmvault_db.GmailStorer.LABELS_K]
-                if not add_labels:
-                    add_labels = [GMVaultExporter.ARCHIVED_FOLDER]
+                add_labels = meta[gmvault_db.GmailStorer.LABELS_K] or [
+                    GMVaultExporter.ARCHIVED_FOLDER
+                ]
+
                 folders.extend(add_labels)
             folders = [re.sub(r'^\\', '', f) for f in folders]
             folders = [f for f in folders if self.want_label(f)]
 
-            LOG.debug("Processing id %s in labels %s." % \
-                (a_id, self.printable_label_list(folders)))
+            LOG.debug(
+                f"Processing id {a_id} in labels {self.printable_label_list(folders)}."
+            )
+
             for folder in folders:
                 self.mailbox.add(msg, folder, meta[gmvault_db.GmailStorer.FLAGS_K])
 
-            done += 1
             left = len(ids) - done
             if done % self.PROGRESS_INTERVAL == 0 and left > 0:
                 elapsed = timer.elapsed()
@@ -111,7 +109,7 @@ class GMVaultExporter(object):
                     (done, kind, timer.seconds_to_human_time(elapsed), \
                      left, timer.estimate_time_left(done, elapsed, left)))
 
-        LOG.critical("Export completed in %s." % (timer.elapsed_human_time(),))
+        LOG.critical(f"Export completed in {timer.elapsed_human_time()}.")
 
 
 class Mailbox(object):
@@ -154,11 +152,11 @@ class Maildir(Mailbox):
             self.subdir(parent)
             path = self.subdir_name(folder)
             path = imap_utf7.encode(path)
-        else:
-            if not self.root_is_maildir():
-                return
+        elif self.root_is_maildir():
             path = ''
 
+        else:
+            return
         abspath = os.path.join(self.path, path)
         sub = mailbox.Maildir(abspath, create = True)
         self.subdirs[folder] = sub
@@ -193,7 +191,7 @@ class Dovecot(Maildir):
     class MaildirPlusPlusLayout(Layout):
         SEPARATOR = '.'
         def join(self, parts):
-            return '.' + super(Dovecot.MaildirPlusPlusLayout, self).join(parts)
+            return f'.{super(Dovecot.MaildirPlusPlusLayout, self).join(parts)}'
 
     DEFAULT_NS_SEP = '.'
     DEFAULT_LISTESCAPE = '\\'
@@ -248,7 +246,7 @@ class MBox(Mailbox):
     """ Class dealing with MBox specificities """
     def __init__(self, folder):
         self.folder = folder
-        self.open = dict()
+        self.open = {}
 
     def close(self):
         for _, m in self.open.items():
@@ -257,7 +255,7 @@ class MBox(Mailbox):
     def subdir(self, label):
         segments = label.split(GMVaultExporter.GM_SEP)
         # Safety first: No unusable directory portions
-        segments = [s for s in segments if s != '..' and s != '.']
+        segments = [s for s in segments if s not in ['..', '.']]
         real_label = GMVaultExporter.GM_SEP.join(segments)
         if real_label in self.open:
             return self.open[real_label]
@@ -275,7 +273,7 @@ class MBox(Mailbox):
                 mbox_path = os.path.join(cur_path, s)
                 self.open[cur_label] = mailbox.mbox(mbox_path)
             # Use .sbd folders a la Thunderbird, to allow nested folders
-            cur_path = os.path.join(cur_path, s + '.sbd')
+            cur_path = os.path.join(cur_path, f'{s}.sbd')
 
         return self.open[real_label]
 

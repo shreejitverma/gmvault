@@ -27,13 +27,13 @@ class TokenizerError(Exception):
         
         self._line = a_line
         self._col  = a_col
-        
-        if self._line == None and self._col == None:
-            extra = "" 
+
+        if self._line is None and self._col is None:
+            extra = ""
         else:
-            extra = "(line=%s,col=%s)" % (self._line, self._col)
-        
-        super(TokenizerError, self).__init__("%s %s." % (a_msg, extra))
+            extra = f"(line={self._line},col={self._col})"
+
+        super(TokenizerError, self).__init__(f"{a_msg} {extra}.")
     
 
 class Token(object):
@@ -78,8 +78,7 @@ class Token(object):
         return self._parsed_line
     
     def __repr__(self):
-        return "[type,num]=[%s,%s],value=[%s], parsed line=%s,[begin index,end index]=[%s,%s]" \
-               % (self._type, self._num, self._value, self._parsed_line, self._begin, self._end)
+        return f"[type,num]=[{self._type},{self._num}],value=[{self._value}], parsed line={self._parsed_line},[begin index,end index]=[{self._begin},{self._end}]"
          
 
 class Tokenizer(object):
@@ -238,16 +237,16 @@ class CompilerError(Exception):
         
         self._line = a_line
         self._col  = a_col
-        
+
         msg = ''
-        
-        if self._line == None and self._col == None:
+
+        if self._line is None and self._col is None:
             extra = ""
-            msg = "%s." % (a_msg) 
+            msg = f"{a_msg}."
         else:
-            extra = "(line=%s,col=%s)" % (self._line, self._col)
-            msg = "%s %s." % (a_msg, extra)
-        
+            extra = f"(line={self._line},col={self._col})"
+            msg = f"{a_msg} {extra}."
+
         super(CompilerError, self).__init__(msg)
     
 class Compiler(object):
@@ -305,107 +304,114 @@ class Compiler(object):
     def _compile_dict(self, a_tokenizer):
         """ internal method for compiling a dict struct """
         result = {}
-        
+
         the_token = a_tokenizer.current_token()
-        
+
         while the_token.type != 'ENDMARKER':
             
-            #look for an open bracket
-            if the_token.type == 'OP' and the_token.value == '{':
-               
-                the_token = a_tokenizer.next()
-                
-                while True:
-                   
-                    if the_token.type == 'OP' and the_token.value == '}':
-                        return result
-                    else:
-                        # get key values
-                        (key, val) = self._compile_key_value(a_tokenizer)
+            if the_token.type != 'OP' or the_token.value != '{':
+                raise CompilerError(
+                    f"Unsupported token (type: {the_token.type}, value : {the_token.value})",
+                    the_token.begin[0],
+                    the_token.begin[1],
+                )
 
-                        result[key] = val  
-                    
-                    the_token = a_tokenizer.current_token()
-                                   
-            else:
-                raise CompilerError("Unsupported token (type: %s, value : %s)" \
-                                    % (the_token.type, the_token.value), the_token.begin[0], the_token.begin[1])
-            
+
+            the_token = a_tokenizer.next()
+
+            while True:
+                   
+                if the_token.type == 'OP' and the_token.value == '}':
+                    return result
+                # get key values
+                (key, val) = self._compile_key_value(a_tokenizer)
+
+                result[key] = val  
+
+                the_token = a_tokenizer.current_token()
+
         #we should never reach that point (compilation error)
-        raise CompilerError("End of line reached without finding a list. The line [%s] cannot be transformed as a list" \
-                            % (the_token.parsed_line))
+        raise CompilerError(
+            f"End of line reached without finding a list. The line [{the_token.parsed_line}] cannot be transformed as a list"
+        )
         
     def _compile_key_value(self, a_tokenizer):
         """ look for the pair key value component of a dict """
         
         the_token = a_tokenizer.current_token()
-        
+
         key = None
         val = None
-        
-        # get key
-        if the_token.type in ('STRING', 'NUMBER', 'NAME'):
-            
-            #next the_token is in _compile_litteral
-            key = self._compile_litteral(a_tokenizer)
-            
-            the_token = a_tokenizer.current_token()
-            
-        else:
-            raise CompilerError("unexpected token (type: %s, value : %s)" \
-                                % (the_token.type, the_token.value), \
-                                the_token.begin[0], the_token.begin[1])  
-        
+
+        if the_token.type not in ('STRING', 'NUMBER', 'NAME'):
+            raise CompilerError(
+                f"unexpected token (type: {the_token.type}, value : {the_token.value})",
+                the_token.begin[0],
+                the_token.begin[1],
+            )
+              
+
+        #next the_token is in _compile_litteral
+        key = self._compile_litteral(a_tokenizer)
+
+        the_token = a_tokenizer.current_token()
+
         #should have a comma now
         if the_token.type != 'OP' and the_token.value != ':':
-            raise CompilerError("Expected a token (type:OP, value: :) but instead got (type: %s, value: %s)" \
-                                % (the_token.type, the_token.value), the_token.begin[0], the_token.begin[1])
+            raise CompilerError(
+                f"Expected a token (type:OP, value: :) but instead got (type: {the_token.type}, value: {the_token.value})",
+                the_token.begin[0],
+                the_token.begin[1],
+            )
+
         else:
             #eat it
             the_token = a_tokenizer.next()
-        
+
         #get value
         # it can be a
         if the_token.type in ('STRING', 'NUMBER', 'NAME'):
             #next the_token is in _compile_litteral
             val = self._compile_litteral(a_tokenizer)
-            
+
             the_token = a_tokenizer.current_token()
-        
-        #check for a list
+
         elif the_token.value == '[' and the_token.type == 'OP':
-            
+
             # look for a list
             val = self._compile_list(a_tokenizer)
-            
+
             # positioning to the next token
             the_token = a_tokenizer.next()
-            
+
         elif the_token.value == '{' and the_token.type == 'OP':
-            
+
             # look for a dict
             val = self._compile_dict(a_tokenizer)
-            
+
             # positioning to the next token
             the_token = a_tokenizer.next()
-        
+
         elif the_token.value == '(' and the_token.type == 'OP':
-            
+
             # look for a dict
             val = self._compile_tuple(a_tokenizer)
-            
+
             # positioning to the next token
             the_token = a_tokenizer.next()
-            
+
         else:
-            raise CompilerError("unexpected token (type: %s, value : %s)" \
-                                % (the_token.type, the_token.value), the_token.begin[0], \
-                                the_token.begin[1])  
-        
+            raise CompilerError(
+                f"unexpected token (type: {the_token.type}, value : {the_token.value})",
+                the_token.begin[0],
+                the_token.begin[1],
+            )
+              
+
         #if we have a comma then eat it as it means that we will have more than one values
         if the_token.type == 'OP' and the_token.value == ',':
             the_token = a_tokenizer.next() 
-            
+
         return (key, val)               
         
         
@@ -413,11 +419,11 @@ class Compiler(object):
         """ compile key. A key can be a NAME, STRING or NUMBER """
         
         val   = None
-        
+
         dummy = None
-        
+
         the_token = a_tokenizer.current_token()
-        
+
         while the_token.type not in ('OP', 'ENDMARKER'):
             if the_token.type == 'STRING':  
                 #check if the string is unicode
@@ -429,41 +435,40 @@ class Compiler(object):
                     #ascii string
                     # the value contains the quote or double quotes so remove them always
                     dummy = the_token.value[1:-1]
-                    
+
             elif the_token.type == 'NAME':
                 # intepret all non quoted names as a string
                 dummy = the_token.value
-                    
+
             elif the_token.type == 'NUMBER':  
-                     
+
                 dummy = self._create_number(the_token.value)
-                 
+
             else:
-                raise CompilerError("unexpected token (type: %s, value : %s)" \
-                                    % (the_token.type, the_token.value), \
-                                    the_token.begin[0], the_token.begin[1])
-           
+                raise CompilerError(
+                    f"unexpected token (type: {the_token.type}, value : {the_token.value})",
+                    the_token.begin[0],
+                    the_token.begin[1],
+                )
+
+
             #if val is not None, it has to be a string
-            if val:
-                val = '%s %s' % (str(val), str(dummy))
-            else:
-                val = dummy
-            
+            val = f'{str(val)} {str(dummy)}' if val else dummy
             the_token = a_tokenizer.next()
-            
+
         return val
     
     
     def _compile_tuple(self, a_tokenizer):
         """ process tuple structure """
         result = []
-        
+
         open_bracket = 0
         # this is the mode without [ & ] operator : 1,2,3,4
         simple_list_mode = 0
-        
+
         the_token = a_tokenizer.current_token()
-        
+
         while the_token.type != 'ENDMARKER':
             #look for an open bracket
             if the_token.value == '(' and the_token.type == 'OP':
@@ -473,72 +478,77 @@ class Compiler(object):
                 #recurse to create the imbricated list
                 else:
                     result.append(self._compile_tuple(a_tokenizer))
-                    
+
                 the_token = a_tokenizer.next()
-            
+
             elif the_token.value == '{' and the_token.type == 'OP':
-               
+
                 result.append(self._compile_dict(a_tokenizer))
-                    
+
                 the_token = a_tokenizer.next()
-            
+
             elif the_token.value == '[' and the_token.type == 'OP':
-               
+
                 result.append(self._compile_list(a_tokenizer))
-                    
+
                 the_token = a_tokenizer.next()
-                    
+
             elif the_token.type == 'OP' and the_token.value == ')':
                 # end of list return result
                 if open_bracket == 1:
                     return tuple(result)
-                # cannot find a closing bracket and a simple list mode
                 elif simple_list_mode == 1:
-                    raise CompilerError("unexpected token (type: %s, value : %s)" \
-                                        % (the_token.value, the_token.type), the_token.begin[0], \
-                                        the_token.begin[1])
-            # the comma case
+                    raise CompilerError(
+                        f"unexpected token (type: {the_token.value}, value : {the_token.type})",
+                        the_token.begin[0],
+                        the_token.begin[1],
+                    )
+
             elif the_token.type == 'OP' and the_token.value == ',':
                 # just eat it
                 the_token = a_tokenizer.next()
-                
+
             elif the_token.type in ('STRING', 'NUMBER', 'NAME'):
-                
+
                 # find values outside of a list 
                 # this can be okay
                 if open_bracket == 0:
                     simple_list_mode = 1
-                    
+
                 #next the_token is in _compile_litteral
                 result.append(self._compile_litteral(a_tokenizer))
-                
+
                 the_token = a_tokenizer.current_token()
-               
+
             else:
-                raise CompilerError("Unsupported token (type: %s, value : %s)"\
-                                    % (the_token.value, the_token.type), \
-                                    the_token.begin[0], the_token.begin[1])
-            
-        
+                raise CompilerError(
+                    f"Unsupported token (type: {the_token.value}, value : {the_token.type})",
+                    the_token.begin[0],
+                    the_token.begin[1],
+                )
+
+                        
+
         # if we are in simple_list_mode return list else error
         if simple_list_mode == 1:
             return tuple(result)
-            
+
         #we should never reach that point (compilation error)
-        raise CompilerError("End of line reached without finding a list. The line [%s] cannot be transformed as a tuple" \
-                            % (the_token.parsed_line))
+        raise CompilerError(
+            f"End of line reached without finding a list. The line [{the_token.parsed_line}] cannot be transformed as a tuple"
+        )
     
     def _compile_list(self, a_tokenizer):
         """ process a list structure """
         result = []
-        
-        
+
+
         open_bracket = 0
         # this is the mode without [ & ] operator : 1,2,3,4
         simple_list_mode = 0
-        
+
         the_token = a_tokenizer.current_token()
-        
+
         while the_token.type != 'ENDMARKER':
             #look for an open bracket
             if the_token.value == '[' and the_token.type == 'OP':
@@ -548,66 +558,69 @@ class Compiler(object):
                 #recurse to create the imbricated list
                 else:
                     result.append(self._compile_list(a_tokenizer))
-                    
+
                 the_token = a_tokenizer.next()
-            
+
             elif the_token.value == '(' and the_token.type == 'OP':
-               
+
                 result.append(self._compile_tuple(a_tokenizer))
-                    
+
                 the_token = a_tokenizer.next()
-            
+
             elif the_token.value == '{' and the_token.type == 'OP':
-               
+
                 result.append(self._compile_dict(a_tokenizer))
-                    
+
                 the_token = a_tokenizer.next()
-                    
+
             elif the_token.type == 'OP' and the_token.value == ']':
                 # end of list return result
                 if open_bracket == 1:
                     return result
-                # cannot find a closing bracket and a simple list mode
                 elif simple_list_mode == 1:
-                    raise CompilerError("unexpected token (type: %s, value : %s)" \
-                                        % (the_token.value, the_token.type), the_token.begin[0], the_token.begin[1])
-            # the comma case
+                    raise CompilerError(
+                        f"unexpected token (type: {the_token.value}, value : {the_token.type})",
+                        the_token.begin[0],
+                        the_token.begin[1],
+                    )
+
             elif the_token.type == 'OP' and the_token.value == ',':
                 # just eat it
                 the_token = a_tokenizer.next()
-                
+
             elif the_token.type in ('STRING', 'NUMBER', 'NAME'):
-                
+
                 # find values outside of a list 
                 # this can be okay
                 if open_bracket == 0:
                     simple_list_mode = 1
-                    
+
                 #next the_token is in _compile_litteral
                 result.append(self._compile_litteral(a_tokenizer))
-                
+
                 the_token = a_tokenizer.current_token()
-               
+
             else:
-                raise CompilerError("Unsupported token (type: %s, value : %s)"\
-                                    % (the_token.value, the_token.type), \
-                                    the_token.begin[0], the_token.begin[1])
-            
-        
+                raise CompilerError(
+                    f"Unsupported token (type: {the_token.value}, value : {the_token.type})",
+                    the_token.begin[0],
+                    the_token.begin[1],
+                )
+
+                        
+
         # if we are in simple_list_mode return list else error
         if simple_list_mode == 1:
             return result
-            
+
         #we should never reach that point (compilation error)
-        raise CompilerError("End of line reached without finding a list. The line [%s] cannot be transformed as a list" \
-                            % (the_token.parsed_line))
+        raise CompilerError(
+            f"End of line reached without finding a list. The line [{the_token.parsed_line}] cannot be transformed as a list"
+        )
          
     @classmethod
     def _create_number(cls, a_number):
         """ depending on the value return a int or a float. 
             For the moment very simple: If there is . it is a float"""
         
-        if a_number.find('.') > 0:
-            return float(a_number)
-        else:
-            return int(a_number)
+        return float(a_number) if a_number.find('.') > 0 else int(a_number)

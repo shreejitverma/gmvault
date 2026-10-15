@@ -191,13 +191,13 @@ class Timer(object):
             return int(round(float(still_to_be_done * in_sec)/nb_elem_done))
     
     @classmethod
-    def seconds_to_human_time(cls, seconds, suffixes=TIMER_SUFFIXES, add_s=False, separator=' '):#pylint:disable=W0102
+    def seconds_to_human_time(cls, seconds, suffixes=TIMER_SUFFIXES, add_s=False, separator=' '):    #pylint:disable=W0102
         """
            convert seconds to human time
         """
         # the formatted time string to be returned
         the_time = []
-        
+
         # the pieces of time to iterate over (days, hours, minutes, etc)
         # - the first piece in each tuple is the suffix (d, h, w)
         # - the second piece is the length in seconds (a day is 60s * 60m * 24h)
@@ -207,21 +207,23 @@ class Timer(object):
               (suffixes[3], 60 * 60),
               (suffixes[4], 60),
               (suffixes[5], 1)]
-        
+
         if seconds < 1: #less than a second case
             return "less than a second"
-        
+
         # for each time piece, grab the value and remaining seconds, and add it to
         # the time string
         for suffix, length in parts:
             value = seconds / length
             if value > 0:
                 seconds = seconds % length
-                the_time.append('%s%s' % (str(value),
-                               (suffix, (suffix, suffix + 's')[value > 1])[add_s]))
+                the_time.append(
+                    f"{str(value)}{suffix, suffix, f'{suffix}s'[value > 1][add_s]}"
+                )
+
             if seconds < 1:
                 break
-        
+
         return separator.join(the_time)
 
 ZERO = datetime.timedelta(0) 
@@ -248,10 +250,7 @@ def get_ym_from_datetime(a_datetime):
     """
        return year month from datetime
     """
-    if a_datetime:
-        return a_datetime.strftime('%Y-%m')
-    
-    return None
+    return a_datetime.strftime('%Y-%m') if a_datetime else None
 
 MONTH_CONV = { 1: 'Jan', 4: 'Apr', 6: 'Jun', 7: 'Jul', 10: 'Oct' , 12: 'Dec',
                2: 'Feb', 5: 'May', 8: 'Aug', 9: 'Sep', 11: 'Nov',
@@ -273,26 +272,23 @@ def compare_yymm_dir(first, second):
               -1 if second > first
     """
     
-    matched = MONTH_YEAR_RE.match(first)
-    
-    if matched:
-        first_year  = int(matched.group('year'))
-        first_month = int(matched.group('month'))
-        
-        first_val   = (first_year * 1000) + first_month
-    else:
-        raise Exception("Invalid Year-Month expression (%s). Please correct it to be yyyy-mm" % (first))
-        
-    matched = MONTH_YEAR_RE.match(second)
-    
-    if matched:
-        second_year  = int(matched.group('year'))
-        second_month = int(matched.group('month'))
-        
-        second_val   = (second_year * 1000) + second_month
-    else:
-        raise Exception("Invalid Year-Month expression (%s). Please correct it" % (second))
-    
+    if not (matched := MONTH_YEAR_RE.match(first)):
+        raise Exception(
+            f"Invalid Year-Month expression ({first}). Please correct it to be yyyy-mm"
+        )
+
+
+    first_year  = int(matched.group('year'))
+    first_month = int(matched.group('month'))
+
+    first_val   = (first_year * 1000) + first_month
+    if not (matched := MONTH_YEAR_RE.match(second)):
+        raise Exception(f"Invalid Year-Month expression ({second}). Please correct it")
+
+    second_year  = int(matched.group('year'))
+    second_month = int(matched.group('month'))
+
+    second_val   = (second_year * 1000) + second_month
     if first_val > second_val:
         return 1
     elif first_val == second_val:
@@ -368,13 +364,7 @@ def e2datetime(a_epoch):
             Returns: a datetime
     """
 
-    #utcfromtimestamp is not working properly with a decimals.
-    # use floor to create the datetime
-#    decim = decimal.Decimal('%s' % (a_epoch)).quantize(decimal.Decimal('.001'), rounding=decimal.ROUND_DOWN)
-
-    new_date = datetime.datetime.utcfromtimestamp(a_epoch)
-
-    return new_date
+    return datetime.datetime.utcfromtimestamp(a_epoch)
 
 def get_utcnow_epoch():
     return datetime2e(datetime.datetime.utcnow())
@@ -455,10 +445,9 @@ def ordered_dirwalk(a_dir, a_file_wildcards='*', a_dir_ignore_list=(), sort_func
     #iterate over sub_dirs
     for sub_dir in sort_func(sub_dirs):
         if os.path.basename(sub_dir) not in a_dir_ignore_list:
-            for p_elem in ordered_dirwalk(sub_dir, a_file_wildcards):
-                yield p_elem 
+            yield from ordered_dirwalk(sub_dir, a_file_wildcards)
         else:
-            LOG.debug("Ignore subdir %s" % sub_dir)
+            LOG.debug(f"Ignore subdir {sub_dir}")
 
 def dirwalk(a_dir, a_wildcards='*'):
     """
@@ -473,16 +462,13 @@ def ascii_hex(a_str):
     """
        transform any string in hexa values
     """
-    new_str = ""
-    for the_char in a_str:
-        new_str += "%s=hex[%s]," % (the_char, hex(ord(the_char)))
-    return new_str
+    return "".join(f"{the_char}=hex[{hex(ord(the_char))}]," for the_char in a_str)
 
 def profile_this(fn):
     """ profiling decorator """
     def profiled_fn(*args, **kwargs):
         import cProfile
-        fpath = fn.__name__ + ".profile"
+        fpath = f"{fn.__name__}.profile"
         prof  = cProfile.Profile()
         ret   = prof.runcall(fn, *args, **kwargs)
         prof.dump_stats(fpath)
@@ -601,16 +587,18 @@ def get_home_dir_path():
        Get the gmvault dir
     """
     gmvault_dir = os.getenv("GMVAULT_DIR", None)
-    
+
     # check by default in user[HOME]
     if not gmvault_dir:
-        LOG.debug("no ENV variable $GMVAULT_DIR defined. Set by default $GMVAULT_DIR to $HOME/.gmvault (%s/.gmvault)" \
-                  % (os.getenv("HOME",".")))
-        gmvault_dir = "%s/.gmvault" % (os.getenv("HOME", "."))
-    
+        LOG.debug(
+            f'no ENV variable $GMVAULT_DIR defined. Set by default $GMVAULT_DIR to $HOME/.gmvault ({os.getenv("HOME", ".")}/.gmvault)'
+        )
+
+        gmvault_dir = f'{os.getenv("HOME", ".")}/.gmvault'
+
     #create dir if not there
     makedirs(gmvault_dir)
-    
+
     return gmvault_dir
 
 CONF_FILE = "gmvault_defaults.conf"
@@ -621,16 +609,13 @@ def get_conf_defaults():
        Return the conf object containing the defaults stored in HOME/gmvault_defaults.conf
        Beware it is memoized
     """
-    filepath = get_conf_filepath()
-    
-    if filepath:
-        
+    if filepath := get_conf_filepath():
         os.environ[gmv.conf.conf_helper.Conf.ENVNAME] = filepath
-    
+
         the_cf = gmv.conf.conf_helper.Conf.get_instance()
-    
-        LOG.debug("Load defaults from %s" % (filepath))
-        
+
+        LOG.debug(f"Load defaults from {filepath}")
+
         return the_cf
     else:
         return gmv.conf.conf_helper.MockConf() #retrun MockObject that will play defaults
@@ -651,11 +636,10 @@ def _get_version_from_conf(home_conf_file):
     with open(home_conf_file) as curr_fd:
         for line in curr_fd:
             line = line.strip()
-            matched = VERSION_RE.match(line)
-            if matched:
+            if matched := VERSION_RE.match(line):
                 ver = matched.group('version')
                 return ver.strip()
-    
+
     return ver
 
 def _create_default_conf_file(home_conf_file):
@@ -681,18 +665,19 @@ def get_conf_filepath():
        If default file is not present, generate it from scratch.
        If it cannot be created, then return None
     """
-    home_conf_file = "%s/%s" % (get_home_dir_path(), CONF_FILE)
-    
+    home_conf_file = f"{get_home_dir_path()}/{CONF_FILE}"
+
     if not os.path.exists(home_conf_file):
         return _create_default_conf_file(home_conf_file)
-    else:
-        # check if the conf file needs to be replaced
-        version = _get_version_from_conf(home_conf_file)
-        if version not in VERSIONS_TO_PRESERVE:
-            LOG.debug("%s with version %s is too old, overwrite it with the latest file." \
-                       % (home_conf_file, version))
-            return _create_default_conf_file(home_conf_file)    
-    
+    # check if the conf file needs to be replaced
+    version = _get_version_from_conf(home_conf_file)
+    if version not in VERSIONS_TO_PRESERVE:
+        LOG.debug(
+            f"{home_conf_file} with version {version} is too old, overwrite it with the latest file."
+        )
+
+        return _create_default_conf_file(home_conf_file)    
+
     return home_conf_file
 
 
@@ -719,12 +704,14 @@ def unescape_url(text):
   return urllib.unquote(text)
 
 def format_url_params(params):
-  """
+    """
   Formats given parameters as URL query string.
   :param params: a python dict
   :return: A URL query string version of the given dict.
   """
-  param_elements = []
-  for param in sorted(params.iteritems(), key=lambda x: x[0]):
-    param_elements.append('%s=%s' % (param[0], escape_url(param[1])))
-  return '&'.join(param_elements)
+    param_elements = [
+        f'{param[0]}={escape_url(param[1])}'
+        for param in sorted(params.iteritems(), key=lambda x: x[0])
+    ]
+
+    return '&'.join(param_elements)

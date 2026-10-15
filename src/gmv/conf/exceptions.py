@@ -49,9 +49,12 @@ class SubstitutionError(Error):
     """Base class for substitution-related exceptions."""
 
     def __init__(self, lineno, location, msg):
-        Error.__init__(self, 'SubstitutionError on line %d: %s. %s' \
-                       % (lineno, location, msg) if lineno != - 1 \
-                       else 'SubstitutionError in %s. %s' % (lineno, location))
+        Error.__init__(
+            self,
+            'SubstitutionError on line %d: %s. %s' % (lineno, location, msg)
+            if lineno != -1
+            else f'SubstitutionError in {lineno}. {location}',
+        )
         
 class IncludeError(Error):
     """ Raised when an include command is incorrect """
@@ -65,7 +68,7 @@ class IncludeError(Error):
 class ParsingError(Error):
     """Raised when a configuration file does not follow legal syntax."""
     def __init__(self, filename):
-        Error.__init__(self, 'File contains parsing errors: %s' % filename)
+        Error.__init__(self, f'File contains parsing errors: {filename}')
         self.filename = filename
         self.errors = []
 

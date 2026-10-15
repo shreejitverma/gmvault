@@ -93,7 +93,7 @@ class Map(object):
         self._dict = {}
         
     def __repr__(self):
-        return "%s(%s)" % (self.__class__.__name__, repr(self._dict))
+        return f"{self.__class__.__name__}({repr(self._dict)})"
     
     __str__ = __repr__
         

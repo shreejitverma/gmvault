@@ -43,20 +43,18 @@ class TestPerf(unittest.TestCase): #pylint:disable-msg=R0904
         dirname   = 'dir_%d'
         data_file = '%d.eml'
         meta_file = '%d.meta'
-        
+
         for nb in xrange(0, nb_dirs):
             #make dir
-            the_dir = '%s/%s' % (working_dir, dirname % nb)
+            the_dir = f'{working_dir}/{dirname % nb}'
             gmvault_utils.makedirs(the_dir)
 
             for file_id in xrange(0,nb_files_per_dir):
                 #create data file
-                with open('%s/%s_%s' % (the_dir, dirname % nb,
-                                        data_file % file_id), 'w') as f:
+                with open(f'{the_dir}/{dirname % nb}_{data_file % file_id}', 'w') as f:
                     f.write("something")
                 #create metadata file
-                with open('%s/%s_%s' % (the_dir, dirname % nb,
-                                        meta_file % file_id), 'w') as f:
+                with open(f'{the_dir}/{dirname % nb}_{meta_file % file_id}', 'w') as f:
                     f.write("another info something")
 
     def test_read_lots_of_files(self):

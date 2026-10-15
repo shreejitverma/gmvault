@@ -138,11 +138,12 @@ class TestSandbox(unittest.TestCase): #pylint:disable-msg=R0904
         the_str = "Subject: Marta Gutierrez commented on her Wall post.\nMessage-ID: <c5b5deee29e373ca42cec75e4ef8384e@www.facebook.com>"
         regexpr = "Subject:\s+(?P<subject>.*)\s+Message-ID:\s+<(?P<msgid>.*)>"
         reg = re.compile(regexpr)
-        
-        matched = reg.match(the_str)
-        if matched:
+
+        if matched := reg.match(the_str):
             print("Matched")
-            print("subject=[%s],messageid=[%s]" % (matched.group('subject'), matched.group('msgid')))
+            print(
+                f"subject=[{matched.group('subject')}],messageid=[{matched.group('msgid')}]"
+            )
             
     def ztest_is_encrypted_regexpr(self):
         """
@@ -151,10 +152,9 @@ class TestSandbox(unittest.TestCase): #pylint:disable-msg=R0904
         import re
         the_str ="1384313269332005293.eml.crypt.gz"
         regexpr ="[\w+,\.]+crypt[\w,\.]*"
-        
+
         reg= re.compile(regexpr)
-        matched = reg.match(the_str)
-        if matched:
+        if matched := reg.match(the_str):
             print("\nMatched")
         else:
             print("\nUnmatched")
@@ -226,7 +226,7 @@ class TestSandbox(unittest.TestCase): #pylint:disable-msg=R0904
         """
         import os
         for root, dirs, files in os.walk('/Users/gaubert/Dev/projects/gmvault/src/gmv/gmvault-db/db'):
-            print("root: %s, sub-dirs : %s, files = %s" % (root, dirs, files))
+            print(f"root: {root}, sub-dirs : {dirs}, files = {files}")
     
     def ztest_get_subdir_info(self):
         """
@@ -245,14 +245,12 @@ class TestSandbox(unittest.TestCase): #pylint:disable-msg=R0904
            test ordered os walk
         """
         import gmv.gmvault_utils as gmvu
-        
+
         for vals in gmvu.ordered_dirwalk('/home/aubert/gmvault-db.old/db', a_wildcards="*.meta"):
             print("vals = %s\n" % (vals))
-            pass
-        
         import os
         for root, dirs, files in os.walk('/Users/gaubert/Dev/projects/gmvault/src/gmv/gmvault-db/db'):
-            print("root: %s, sub-dirs : %s, files = %s" % (root, dirs, files))
+            print(f"root: {root}, sub-dirs : {dirs}, files = {files}")
             
             
     

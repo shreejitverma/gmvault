@@ -74,11 +74,11 @@ class Resource(object):
            remove -- or - from the command line argument and add a -- prefix to standardize the cli argument 
         """
         the_str = a_tostrip
-        
+
         while the_str.startswith('-'):
             the_str = the_str[1:]
-        
-        return '--%s' % (the_str)
+
+        return f'--{the_str}'
     
     def _get_value_from_command_line(self):
         """
@@ -121,19 +121,15 @@ class Resource(object):
         """
       
         # precondition
-        if self._env_var == None:
-            return None
-     
-        return os.environ.get(self._env_var, None)
+        return None if self._env_var is None else os.environ.get(self._env_var, None)
       
     def _get_from_conf(self):
         """
            Try to read the info from the Configuration if possible
         """
-        if self._conf_group and self._conf_property:
-            if Conf.can_be_instanciated():
-                return Conf.get_instance().get(self._conf_group, self._conf_property)
-        
+        if self._conf_group and self._conf_property and Conf.can_be_instanciated():
+            return Conf.get_instance().get(self._conf_group, self._conf_property)
+
         return None
           
         
@@ -155,40 +151,41 @@ class Resource(object):
         val = self._get_value_from_command_line()
         if val is None:
             val = self._get_value_from_env()
-            if val is None:
-                val = self._get_from_conf()
-                if (val is None) and a_raise_exception:
+        if val is None:
+            val = self._get_from_conf()
+        if (val is None) and a_raise_exception:
                     
-                    the_str = "Cannot find "
-                    add_nor = 0
-                    
-                    if self._cli_arg is not None:
-                        the_str += "commandline argument %s" % (self._cli_arg)
-                        add_nor += 1
-                    
-                    if self._env_var is not None:
+            the_str = "Cannot find "
+            add_nor = 0
+
+            if self._cli_arg is not None:
+                the_str += f"commandline argument {self._cli_arg}"
+                add_nor += 1
+
+            if self._env_var is not None:
                         
-                        if add_nor > 0:
-                            the_str += ", nor "
-                    
-                        the_str += "the Env Variable %s" % (self._env_var)
-                        add_nor += 1
-                    
-                    if self._conf_group is not None:
-                        if add_nor > 0:
-                            the_str += ", nor "
-                        
-                        the_str += "the Conf Group:[%s] and Property=%s" % (self._conf_group, self._conf_property)
-                        add_nor += 1
-                        
-                    if add_nor == 0:
-                        the_str += " any defined commandline argument, nor any env variable or"\
-                                   " Conf group and properties. They are all None, fatal error"
-                    else:
-                        the_str += ". One of them should be defined"
-                    
-                    raise ResourceError(the_str)
-    
+                if add_nor > 0:
+                    the_str += ", nor "
+
+                the_str += f"the Env Variable {self._env_var}"
+                add_nor += 1
+
+            if self._conf_group is not None:
+                if add_nor > 0:
+                    the_str += ", nor "
+
+                the_str += f"the Conf Group:[{self._conf_group}] and Property={self._conf_property}"
+
+                add_nor += 1
+
+            if add_nor == 0:
+                the_str += " any defined commandline argument, nor any env variable or"\
+                           " Conf group and properties. They are all None, fatal error"
+            else:
+                the_str += ". One of them should be defined"
+
+            raise ResourceError(the_str)
+
         return val
    
     def _get(self, conv):
@@ -349,7 +346,7 @@ class Conf(object):
     @classmethod
     def get_instance(cls):
         """ singleton method """
-        if cls._instance == None:
+        if cls._instance is None:
             cls._instance = Conf()
         return cls._instance
     
@@ -436,12 +433,9 @@ class Conf(object):
                exception NoOptionError if fail_if_missing is True
         """
         if fail_if_missing:
-            raise exceptions.Error(2, "No option %s in section %s" %(option, section))
+            raise exceptions.Error(2, f"No option {option} in section {section}")
         else:
-            if default is not None:
-                return str(default)
-            else:
-                return None
+            return str(default) if default is not None else None
     
     def get(self, section, option, default=None, fail_if_missing=False):
         """ get one option from a section.
@@ -461,7 +455,7 @@ class Conf(object):
         """
         # all options are kept in lowercase
         opt = self.optionxform(option)
-        
+
         if section not in self._sections:
             #check if it is a ENV section
             dummy = None
@@ -472,9 +466,17 @@ class Conf(object):
                 the_r = Resource(a_cli_argument=opt, a_env_variable=None)
                 dummy = the_r.get_value()
             #return default if dummy is None otherwise return dummy
-            return ((self._get_defaults(section, opt, default, fail_if_missing)) if dummy == None else dummy)
+            return (
+                (self._get_defaults(section, opt, default, fail_if_missing))
+                if dummy is None
+                else dummy
+            )
+
         elif opt in self._sections[section]:
-            return self._replace_vars(self._sections[section][opt], "%s[%s]" % (section, option), - 1)
+            return self._replace_vars(
+                self._sections[section][opt], f"{section}[{option}]", -1
+            )
+
         else:
             return self._get_defaults(section, opt, default, fail_if_missing)
         
@@ -537,10 +539,7 @@ class Conf(object):
     
     def has_section(self, section):
         """Check for the existence of a given section in the configuration."""
-        has_section = False
-        if section in self._sections:
-            has_section = True
-        return has_section
+        return section in self._sections
         
     @classmethod
     def _get_closing_bracket_index(cls, index, the_str, location, lineno):
@@ -559,27 +558,29 @@ class Conf(object):
         """
         
         tolook = the_str[index + 2:]
-   
+
         opening_brack = 1
         closing_brack_index = index + 2
-    
+
         i = 0
         for _ch in tolook:
-            if _ch == ')':
+            if _ch == '(':
+                if tolook[i - 1] == '%':
+                    opening_brack += 1
+
+            elif _ch == ')':
                 if opening_brack == 1:
                     return closing_brack_index
                 else:
                     opening_brack -= 1
-     
-            elif _ch == '(':
-                if tolook[i - 1] == '%':
-                    opening_brack += 1
-        
+
             # inc index
             closing_brack_index += 1
             i += 1
-    
-        raise exceptions.SubstitutionError(lineno, location, "Missing a closing bracket in %s" % (tolook))
+
+        raise exceptions.SubstitutionError(
+            lineno, location, f"Missing a closing bracket in {tolook}"
+        )
 
     # very permissive regex
     _SUBSGROUPRE = re.compile(r"%\((?P<group>\w*)\[(?P<option>(.*))\]\)")
@@ -754,14 +755,14 @@ class Conf(object):
             raise exceptions.IncludeError("Error. Cannot do more than %d nested includes."\
                                           " It is probably a mistake as you might have created a loop of includes" \
                                           % (Conf._MAX_INCLUDE_DEPTH))
-        
+
         # remove %include from the path and we should have a path
         i = line.find('%include')
-        
+
         #check if there is a < for including config files from a different format
         #position after include
         i = i + 8
-        
+
         # include file with a specific reading module
         if line[i] == '<':
             dummy = line[i+1:].strip()
@@ -770,43 +771,43 @@ class Conf(object):
                 raise exceptions.IncludeError("Error. > is missing in the include line no %s: %s."\
                                               " It should be %%include<mode:group_name> path" \
                                                    % (line, lineno), origin )
-            else:
-                group_name = None
-                the_format     = dummy[:f_i].strip()
-                
-                the_list = the_format.split(':')
-                if len(the_list) != 2 :
-                    raise exceptions.IncludeError("Error. The mode and the group_name are not in the include line no %s: %s."\
-                                                       " It should be %%include<mode:group_name> path" \
-                                                       % (line, lineno), origin )
-                else:
-                    the_format, group_name = the_list
-                    #strip the group name
-                    group_name = group_name.strip()
-                    
-                path = dummy[f_i+1:].strip()
-                
-                # replace variables if there are any
-                path = self._replace_vars(path, line, lineno)
-                
-                raise exceptions.IncludeError("External Module reading not enabled in this ConfHelper")
-                #self._read_with_module(group_name, format, path, origin)
+            group_name = None
+            the_format     = dummy[:f_i].strip()
+
+            the_list = the_format.split(':')
+            if len(the_list) != 2:
+                raise exceptions.IncludeError("Error. The mode and the group_name are not in the include line no %s: %s."\
+                                                   " It should be %%include<mode:group_name> path" \
+                                                   % (line, lineno), origin )
+            the_format, group_name = the_list
+            #strip the group name
+            group_name = group_name.strip()
+
+            path = dummy[f_i+1:].strip()
+
+            # replace variables if there are any
+            path = self._replace_vars(path, line, lineno)
+
+            raise exceptions.IncludeError("External Module reading not enabled in this ConfHelper")
         else:
             # normal include   
             path = line[i:].strip() 
-            
+
             # replace variables if there are any
             path = self._replace_vars(path, line, lineno)
-            
+
             # check if file exits
             if not os.path.exists(path):
-                raise exceptions.IncludeError("the config file to include %s does not exits" % (path), origin)
+                raise exceptions.IncludeError(
+                    f"the config file to include {path} does not exits", origin
+                )
+
             else:
                 # add include file and populate the section hash
                 self._read(codecs.open(path, 'r', 'utf-8'), path, depth + 1)
                 #self._read(open(path, 'r'), path, depth + 1)
 
-    def _read(self, fpointer, fpname, depth=0): #pylint: disable=R0912
+    def _read(self, fpointer, fpname, depth=0):    #pylint: disable=R0912
         """Parse a sectioned setup file.
 
         The sections in setup file contains a title line at the top,
@@ -838,50 +839,42 @@ class Conf(object):
                 continue
             # continuation line?
             if line[0].isspace() and cursect is not None and optname:
-                value = line.strip()
-                if value:
+                if value := line.strip():
                     cursect[optname] = "%s\n%s" % (cursect[optname], value)
-            # a section header or option header?
-            else:
-                # is it a section header?
-                matched = self.SECTCRE.match(line)
-                if matched:
-                    sectname = matched.group('header')
-                    if sectname in self._sections:
-                        cursect = self._sections[sectname]
-                    else:
-                        cursect = {'__name__': sectname}
-                        self._sections[sectname] = cursect
-                    # So sections can't start with a continuation line
-                    optname = None
-                # no section header in the file?
-                elif cursect is None:
-                    raise exceptions.MissingSectionHeaderError(fpname, lineno, line)
-                # an option line?
+            elif matched := self.SECTCRE.match(line):
+                sectname = matched.group('header')
+                if sectname in self._sections:
+                    cursect = self._sections[sectname]
                 else:
-                    matched = self.OPTCRE.match(line)
-                    if matched:
-                        optname, vio, optval = matched.group('option', 'vi', 'value')
-                        if vio in ('=', ':') and ';' in optval:
-                            # ';' is a comment delimiter only if it follows
-                            # a spacing character
-                            pos = optval.find(';')
-                            if pos != - 1 and optval[pos - 1].isspace():
-                                optval = optval[:pos]
-                        optval = optval.strip()
-                        # allow empty values
-                        if optval == '""':
-                            optval = ''
-                        optname = self.optionxform(optname.rstrip())
-                        cursect[optname] = optval
-                    else:
-                        # a non-fatal parsing error occurred.  set up the
-                        # exception but keep going. the exception will be
-                        # raised at the end of the file and will contain a
-                        # list of all bogus lines
-                        if not err:
-                            err = exceptions.ParsingError(fpname)
-                        err.append(lineno, repr(line))
+                    cursect = {'__name__': sectname}
+                    self._sections[sectname] = cursect
+                # So sections can't start with a continuation line
+                optname = None
+            elif cursect is None:
+                raise exceptions.MissingSectionHeaderError(fpname, lineno, line)
+            else:
+                if matched := self.OPTCRE.match(line):
+                    optname, vio, optval = matched.group('option', 'vi', 'value')
+                    if vio in ('=', ':') and ';' in optval:
+                        # ';' is a comment delimiter only if it follows
+                        # a spacing character
+                        pos = optval.find(';')
+                        if pos != - 1 and optval[pos - 1].isspace():
+                            optval = optval[:pos]
+                    optval = optval.strip()
+                    # allow empty values
+                    if optval == '""':
+                        optval = ''
+                    optname = self.optionxform(optname.rstrip())
+                    cursect[optname] = optval
+                else:
+                    # a non-fatal parsing error occurred.  set up the
+                    # exception but keep going. the exception will be
+                    # raised at the end of the file and will contain a
+                    # list of all bogus lines
+                    if not err:
+                        err = exceptions.ParsingError(fpname)
+                    err.append(lineno, repr(line))
         # if any parsing errors occurred, raise an exception
         if err:
             raise err.get_error()

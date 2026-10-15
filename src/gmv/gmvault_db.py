@@ -87,11 +87,11 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
         """
         self._top_dir = a_storage_dir
 
-        self._db_dir          = '%s/%s' % (a_storage_dir, GmailStorer.DB_AREA)
-        self._quarantine_dir  = '%s/%s' % (a_storage_dir, GmailStorer.QUARANTINE_AREA)
-        self._info_dir        = '%s/%s' % (a_storage_dir, GmailStorer.INFO_AREA)
-        self._chats_dir       = '%s/%s' % (self._db_dir, GmailStorer.CHATS_AREA)
-        self._bin_dir         = '%s/%s' % (a_storage_dir, GmailStorer.BIN_AREA)
+        self._db_dir = f'{a_storage_dir}/{GmailStorer.DB_AREA}'
+        self._quarantine_dir = f'{a_storage_dir}/{GmailStorer.QUARANTINE_AREA}'
+        self._info_dir = f'{a_storage_dir}/{GmailStorer.INFO_AREA}'
+        self._chats_dir = f'{self._db_dir}/{GmailStorer.CHATS_AREA}'
+        self._bin_dir = f'{a_storage_dir}/{GmailStorer.BIN_AREA}'
 
         self._sub_chats_dir   = None
         self._sub_chats_inc   = -1
@@ -122,32 +122,29 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
         """
            get info from existing sub chats
         """
-        nb_to_dir = {}
-
-        LOG.debug("LIMIT_PER_CHAT_DIR = %s" % self._limit_per_chat_dir)
+        LOG.debug(f"LIMIT_PER_CHAT_DIR = {self._limit_per_chat_dir}")
 
         if os.path.exists(self._chats_dir):
             dirs = os.listdir(self._chats_dir)
+            nb_to_dir = {}
+
             for the_dir in dirs:
                 the_split = the_dir.split("-")
                 if len(the_split) != 2:
-                    raise Exception("Should get 2 elements in %s" % the_split)
+                    raise Exception(f"Should get 2 elements in {the_split}")
 
                 nb_to_dir[int(the_split[1])] = the_dir
 
-            if len(nb_to_dir) == 0:
+            if not nb_to_dir:
                 # no sub dir yet. Set it up
                 self._sub_chats_nb  = 0
                 self._sub_chats_inc = 1
-                self._sub_chats_dir = self.SUB_CHAT_AREA % ("subchats-%s" % (self._sub_chats_inc))
-                gmvault_utils.makedirs("%s/%s" % (self._db_dir, self._sub_chats_dir))
+                self._sub_chats_dir = self.SUB_CHAT_AREA % f"subchats-{self._sub_chats_inc}"
+                gmvault_utils.makedirs(f"{self._db_dir}/{self._sub_chats_dir}")
 
-            # treat when more than limit chats in max dir 
-            # treat when no dirs
-            # add limit  as attribute limit_per_dir = 2000
             else:
                 the_max = max(nb_to_dir)
-                files = os.listdir("%s/%s" % (self._chats_dir, nb_to_dir[the_max]))
+                files = os.listdir(f"{self._chats_dir}/{nb_to_dir[the_max]}")
                 self._sub_chats_nb  = len(files)/2
                 self._sub_chats_inc = the_max
                 self._sub_chats_dir = self.SUB_CHAT_AREA % nb_to_dir[the_max] 
@@ -164,19 +161,19 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
 
             self._sub_chats_nb = 1
 
-            self._sub_chats_dir = self.SUB_CHAT_AREA % ("subchats-%s" % (self._sub_chats_inc))
-            gmvault_utils.makedirs('%s/%s' % (self._db_dir, self._sub_chats_dir))
+            self._sub_chats_dir = self.SUB_CHAT_AREA % f"subchats-{self._sub_chats_inc}"
+            gmvault_utils.makedirs(f'{self._db_dir}/{self._sub_chats_dir}')
 
-            return self._sub_chats_dir
         else:
             self._sub_chats_nb += 1
-            return self._sub_chats_dir
+
+        return self._sub_chats_dir
 
     def _create_gmvault_db_version(self):
         """
            Create the Gmvault database version if it doesn't already exist
         """
-        version_file = '%s/%s' % (self._info_dir, self.GMVAULTDB_VERSION)
+        version_file = f'{self._info_dir}/{self.GMVAULTDB_VERSION}'
         if not os.path.exists(version_file):
             with open(version_file, "w+") as f:
                 f.write(gmvault_utils.GMVAULT_VERSION)
@@ -191,7 +188,7 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
 
         if email_owner not in owners:
             owners.append(email_owner)
-            with open('%s/%s' % (self._info_dir, self.EMAIL_OWNER), "w+") as f:
+            with open(f'{self._info_dir}/{self.EMAIL_OWNER}', "w+") as f:
                 json.dump(owners, f, ensure_ascii=False)
                 f.flush()
 
@@ -200,7 +197,7 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
            Get the email owner for the gmvault-db. Because except in particular
            cases, the db will be only linked to one email.
         """
-        fname = '%s/%s' % (self._info_dir, self.EMAIL_OWNER)
+        fname = f'{self._info_dir}/{self.EMAIL_OWNER}'
         if os.path.exists(fname):    
             with open(fname, 'r') as f:
                 list_of_owners = json.load(f)
@@ -221,8 +218,12 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
         """
         if not self._cipher:
             if not self._encryption_key:
-                self._encryption_key = credential_utils.CredentialHelper.get_secret_key('%s/%s'
-                % (self._info_dir, self.ENCRYPTION_KEY_FILENAME))
+                self._encryption_key = (
+                    credential_utils.CredentialHelper.get_secret_key(
+                        f'{self._info_dir}/{self.ENCRYPTION_KEY_FILENAME}'
+                    )
+                )
+
 
             #create blowfish cipher if data needs to be encrypted
             self._cipher = blowfish.Blowfish(self._encryption_key)
@@ -235,14 +236,16 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
            Return the path of the encryption key.
            This is used to print that information to the user
         """
-        return '%s/%s/%s' % (a_root_dir, cls.INFO_AREA, cls.ENCRYPTION_KEY_FILENAME)
+        return f'{a_root_dir}/{cls.INFO_AREA}/{cls.ENCRYPTION_KEY_FILENAME}'
 
     @classmethod
     def get_encryption_key(cls, a_info_dir):
         """
            Return or generate the encryption key if it doesn't exist
         """
-        return credential_utils.CredentialHelper.get_secret_key('%s/%s' % (a_info_dir, cls.ENCRYPTION_KEY_FILENAME))
+        return credential_utils.CredentialHelper.get_secret_key(
+            f'{a_info_dir}/{cls.ENCRYPTION_KEY_FILENAME}'
+        )
 
     @classmethod
     def parse_header_fields(cls, header_fields):
@@ -296,7 +299,7 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
         # beware orderedDict preserve order by insertion and not by key order
         gmail_ids = {}
 
-        chat_dir = '%s/%s' % (self._db_dir, self.CHATS_AREA)
+        chat_dir = f'{self._db_dir}/{self.CHATS_AREA}'
         if os.path.exists(chat_dir):
             the_iter = gmvault_utils.ordered_dirwalk(chat_dir, "*.meta")
 
@@ -334,9 +337,13 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
                                                             ignore_sub_dir))
 
             #create all iterators and chain them to keep the same interface
-            iter_dirs = [gmvault_utils.ordered_dirwalk('%s/%s' %
-                         (self._db_dir, the_dir), "*.meta", ignore_sub_dir)
-                         for the_dir in dirs]
+            iter_dirs = [
+                gmvault_utils.ordered_dirwalk(
+                    f'{self._db_dir}/{the_dir}', "*.meta", ignore_sub_dir
+                )
+                for the_dir in dirs
+            ]
+
 
             the_iter = itertools.chain.from_iterable(iter_dirs)
 
@@ -367,7 +374,7 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
              local_dir : intermediary dir (month dir)
         """
         if local_dir:
-            the_dir = '%s/%s' % (self._db_dir, local_dir)
+            the_dir = f'{self._db_dir}/{local_dir}'
             gmvault_utils.makedirs(the_dir)
         else:
             the_dir = self._db_dir
@@ -431,7 +438,7 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
              compress  : if compress is True, use gzip compression
         """
         if local_dir:
-            the_dir = '%s/%s' % (self._db_dir, local_dir)
+            the_dir = f'{self._db_dir}/{local_dir}'
             gmvault_utils.makedirs(the_dir)
         else:
             the_dir = self._db_dir
@@ -458,10 +465,10 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
 
         # if the data has to be encrypted
         if self._encrypt_data:
-            data_path = '%s.crypt' % data_path
+            data_path = f'{data_path}.crypt'
 
         if compress:
-            data_path = '%s.gz' % data_path
+            data_path = f'{data_path}.gz'
             data_desc = gzip.open(data_path, 'wb')
         else:
             data_desc = open(data_path, 'wb')
@@ -480,7 +487,7 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
             else:
                 #convert email content to unicode
                 data = gmvault_utils.convert_to_unicode(email_info[imap_utils.GIMAPFetcher.EMAIL_BODY])
-      
+
                 # write in chunks of one 1 MB
                 for chunk in gmvault_utils.chunker(data, 1048576):
                     data_desc.write(chunk.encode('utf-8'))
@@ -500,11 +507,11 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
            Return the directory path if id located.
            Return None if not found
         """
-        filename = '%s.meta' % a_id
+        filename = f'{a_id}.meta'
 
         #local_dir can be passed to avoid scanning the filesystem (because of WIN7 fs weaknesses)
         if a_local_dir:
-            the_dir = '%s/%s' % (self._db_dir, a_local_dir)
+            the_dir = f'{self._db_dir}/{a_local_dir}'
             if os.path.exists(self.METADATA_FNAME % (the_dir, a_id)):
                 return the_dir
         else:
@@ -516,7 +523,7 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
             #walk the filesystem
             for the_dir, _, files in os.walk(os.path.abspath(self._db_dir)):
                 self.fsystem_info_cache[the_dir] = files
-                for filename in fnmatch.filter(files, filename):
+                for _ in fnmatch.filter(files, filename):
                     return the_dir
 
     @contextmanager
@@ -527,12 +534,12 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
         data_p = self.DATA_FNAME % (a_dir, a_id)
 
         # check if encrypted and compressed or not
-        if os.path.exists('%s.crypt.gz' % data_p):
-            f = gzip.open('%s.crypt.gz' % data_p, 'r')
-        elif os.path.exists('%s.gz' % data_p):
-            f = gzip.open('%s.gz' % data_p, 'r')
-        elif os.path.exists('%s.crypt' % data_p):
-            f = open('%s.crypt' % data_p, 'r')
+        if os.path.exists(f'{data_p}.crypt.gz'):
+            f = gzip.open(f'{data_p}.crypt.gz', 'r')
+        elif os.path.exists(f'{data_p}.gz'):
+            f = gzip.open(f'{data_p}.gz', 'r')
+        elif os.path.exists(f'{data_p}.crypt'):
+            f = open(f'{data_p}.crypt', 'r')
         else:
             f = open(data_p)
 
@@ -563,12 +570,12 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
         meta = self.METADATA_FNAME % (the_dir, a_id)
 
         # check if encrypted and compressed or not
-        if os.path.exists('%s.crypt.gz' % data):
-            data = '%s.crypt.gz' % data
-        elif os.path.exists('%s.gz' % data):
-            data = '%s.gz' % data
-        elif os.path.exists('%s.crypt' % data):
-            data = '%s.crypt' % data
+        if os.path.exists(f'{data}.crypt.gz'):
+            data = f'{data}.crypt.gz'
+        elif os.path.exists(f'{data}.gz'):
+            data = f'{data}.gz'
+        elif os.path.exists(f'{data}.crypt'):
+            data = f'{data}.crypt'
 
         #remove files if already quarantined
         q_data_path = os.path.join(self._quarantine_dir, os.path.basename(data))
@@ -606,7 +613,7 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
 
         with self._get_data_file_from_id(the_dir, a_id) as f:
             if self.email_encrypted(f.name):
-                LOG.debug("Restore encrypted email %s." % a_id)
+                LOG.debug(f"Restore encrypted email {a_id}.")
                 # need to be done for every encryption
                 cipher = self.get_encryption_cipher()
                 cipher.initCTR()
@@ -627,7 +634,7 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
 
         with self._get_data_file_from_id(a_id_dir, a_id) as f:
             if self.email_encrypted(f.name):
-                LOG.debug("Restore encrypted email %s" % a_id)
+                LOG.debug(f"Restore encrypted email {a_id}")
                 # need to be done for every encryption
                 cipher = self.get_encryption_cipher()
                 cipher.initCTR()
@@ -667,24 +674,20 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
         """
            Delete all emails and metadata with ids
         """
-        if msg_type == 'email':
-            db_dir = self._db_dir
-        else:
-            db_dir = self._chats_dir
-
+        db_dir = self._db_dir if msg_type == 'email' else self._chats_dir
         move_to_bin = gmvault_utils.get_conf_defaults().get_boolean(
             "General", "keep_in_bin" , False)
 
         if move_to_bin:
-            LOG.critical("Move emails to the bin:%s" % self._bin_dir)
+            LOG.critical(f"Move emails to the bin:{self._bin_dir}")
 
         for (a_id, date_dir) in emails_info:
 
-            the_dir = '%s/%s' % (db_dir, date_dir)
+            the_dir = f'{db_dir}/{date_dir}'
 
             data_p      = self.DATA_FNAME % (the_dir, a_id)
-            comp_data_p = '%s.gz' % data_p
-            cryp_comp_data_p = '%s.crypt.gz' % data_p
+            comp_data_p = f'{data_p}.gz'
+            cryp_comp_data_p = f'{data_p}.crypt.gz'
 
             metadata_p  = self.METADATA_FNAME % (the_dir, a_id)
 
@@ -699,10 +702,10 @@ class GmailStorer(object): #pylint:disable=R0902,R0904,R0914
                 if os.path.exists(data_p):
                     os.rename(data_p, bin_p)
                 elif os.path.exists(comp_data_p):
-                    os.rename(comp_data_p, '%s.gz' % bin_p)
+                    os.rename(comp_data_p, f'{bin_p}.gz')
                 elif os.path.exists(cryp_comp_data_p):
-                    os.rename(cryp_comp_data_p, '%s.crypt.gz' % bin_p)   
-                
+                    os.rename(cryp_comp_data_p, f'{bin_p}.crypt.gz')   
+
                 if os.path.exists(metadata_p):
                     os.rename(metadata_p, metadata_bin_p)
             else:

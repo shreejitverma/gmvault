@@ -3,10 +3,7 @@ import sys
 import unicodedata
 
 def ascii_hex(str):
-   new_str = ""
-   for c in str:
-      new_str += "%s=hex[%s]," % (c,hex(ord(c)))
-   return new_str
+   return "".join(f"{c}=hex[{hex(ord(c))}]," for c in str)
                 
 def convert_to_utf8(a_str):
     """
